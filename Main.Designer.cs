@@ -28,18 +28,10 @@
         /// </summary>
         private void InitializeComponent()
         {
-            btnConnect = new Button();
             SuspendLayout();
             // 
             // button1
             // 
-            btnConnect.Location = new Point(355, 173);
-            btnConnect.Name = "btnConnect";
-            btnConnect.Size = new Size(75, 23);
-            btnConnect.TabIndex = 0;
-            btnConnect.Text = "Connect";
-            btnConnect.UseVisualStyleBackColor = true;
-            btnConnect.Click += btnConnect_Click;
             // 
             // Main
             // 

@@ -1,4 +1,5 @@
 using Microsoft.Data.SqlClient;
+using Prabesh_Academy.Modules.Views;
 
 namespace Prabesh_Academy
 {
@@ -7,48 +8,17 @@ namespace Prabesh_Academy
         public Main()
         {
             InitializeComponent();
+            LoadHomePage();
         }
 
-        private string GetConnectionString()
+        public void LoadHomePage()
         {
-            return System.Configuration.ConfigurationManager.ConnectionStrings["pAcademyDBstring"].ConnectionString;
+            // Clear current controls if needed
+            this.Controls.Clear();
+            // Create home_page instance and add it to the Main form
+            home_page homepage = new home_page(); // Create home page instance
+            homepage.Dock = DockStyle.Fill; // Fill the entire form
+            this.Controls.Add(homepage); // Add the home page control to the form
         }
-
-        private void ConnectToDatabase()
-        {
-            try
-            {
-                string connectionString = GetConnectionString();
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-                    MessageBox.Show("Connected successfully!");
-
-                    string query = "SELECT * FROM test"; // Replace "test" with your table name
-                    SqlCommand command = new SqlCommand(query, connection);
-                    SqlDataReader reader = command.ExecuteReader();
-
-                    string displayData = "Database Test Table Details:\n";
-                    while (reader.Read())
-                    {
-                        displayData += $"ID: {reader["id"]}\n"; // Replace with your column names
-                    }
-                    reader.Close();
-
-                    MessageBox.Show(displayData); // Display results in a MessageBox
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error: {ex.Message}");
-            }
-
-        }
-
-        private void btnConnect_Click(object sender, EventArgs e)
-        {
-            ConnectToDatabase();
-        }
-
     }
 }
