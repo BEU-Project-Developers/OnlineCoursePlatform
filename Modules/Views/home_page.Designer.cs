@@ -16,12 +16,10 @@ namespace Prabesh_Academy.Modules.Views
             base.Dispose(disposing);
         }
 
-        // Initialize the UI components
         // Initialize UI components
         private void InitializeComponent()
         {
             this.BackColor = System.Drawing.Color.Black;
-            this.Size = new Size(800, 600); // Set the size of the UserControl
 
             // Back Button
             Button backButton = new Button();
@@ -32,10 +30,10 @@ namespace Prabesh_Academy.Modules.Views
             //backButton.Click += BackButton_Click; // Attach click event
             backButton.Visible = false; // Initially hidden
 
-           
- 
+            this.Controls.Add(backButton);
 
-            // Add controls to the UserControl
+            // Remove this.Size to allow dynamic resizing
+            // this.Size = new Size(800, 600); // Remove this line
         }
     }
 }

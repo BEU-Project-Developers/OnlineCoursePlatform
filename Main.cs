@@ -8,6 +8,7 @@ namespace Prabesh_Academy
         public Main()
         {
             InitializeComponent();
+            this.WindowState = FormWindowState.Maximized;
             LoadHomePage();
         }
 
