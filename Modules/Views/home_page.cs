@@ -1,4 +1,7 @@
-﻿namespace Prabesh_Academy.Modules.Views
+﻿using Prabesh_Academy.Modules.Forms; // Add this line
+
+
+namespace Prabesh_Academy.Modules.Views
 {
     public partial class home_page : UserControl
     {
@@ -11,6 +14,18 @@
             InitializeHeaderPanel();
             InitializeMainPanel();
             AddCoursesCardToMainPanel();
+
+           
+        }
+
+        private void LoginButton_Click(object sender, EventArgs e)
+        {
+            (this.ParentForm as Main).ShowLoginForm(); // Call the ShowLoginForm method in Main Form
+        }
+
+        private void SignupButton_Click(object sender, EventArgs e)
+        {
+            (this.ParentForm as Main)?.ShowSignupForm();
         }
         // Initialize the main panel where course cards will be displayed
         private void InitializeMainPanel()
@@ -68,6 +83,9 @@
             headerPanel.Controls.Add(headerLabel);
             headerPanel.Controls.Add(loginButton);
             headerPanel.Controls.Add(signupButton);
+            // Event handlers for login and signup buttons
+            loginButton.Click += LoginButton_Click;
+            signupButton.Click += SignupButton_Click;
 
             headerPanel.Resize += (s, e) =>
             {
