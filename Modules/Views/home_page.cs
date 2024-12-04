@@ -50,14 +50,14 @@ namespace Prabesh_Academy.Modules.Views
         {
             headerPanel = new Panel();
             headerPanel.Dock = DockStyle.Top;
-            headerPanel.Height = 150;
+            headerPanel.Height = 200;
             this.Controls.Add(headerPanel);
 
             Label headerLabel = new Label
             {
                 Text = "Welcome to Prabesh Academy 🤗",
-                Font = new Font("Comic Sans MS", 20, FontStyle.Bold),
-                ForeColor = Color.MediumPurple,
+                Font = new Font("Comic Sans MS", 40, FontStyle.Bold),
+                ForeColor = Color.DarkGreen,
                 AutoSize = true,  // Set AutoSize to true if you want it to adjust size dynamically
                 //Dock = DockStyle.Fill,  // Allow it to expand in the panel
                 //TextAlign = ContentAlignment.MiddleCenter,
@@ -93,25 +93,33 @@ namespace Prabesh_Academy.Modules.Views
             headerPanel.Resize += (s, e) =>
             {
                 headerLabel.Location = new Point((headerPanel.Width - headerLabel.Width) / 2, 10);
-                loginButton.Location = new Point((headerPanel.Width - (loginButton.Width + signupButton.Width + 20)) / 2, 70);
+                loginButton.Location = new Point((headerPanel.Width - (loginButton.Width + signupButton.Width + 20)) / 2, headerPanel.Height-loginButton.Height-50);
                 signupButton.Location = new Point(loginButton.Right + 20, loginButton.Top);
             };
         }
 
         private void AddCoursesCardToMainPanel()
         {
-            int courseCardWidth = 250;
-            int courseCardHeight = 200;
+            int courseCardWidth = 430;
+            int courseCardHeight = 340;
             int margin = 20;
             mainPanel.Controls.Clear();
 
             var courses = new[]
             {
     new { Title = "Physics : Chapter 18 - Rotational Dynamics | Mechanics", Duration = "3 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\demo_thumb.png" },
-    new { Title = "Chemistry : Chapter 4 - Ideal Gas Equation | Gas Laws 2", Duration = "5 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\demo_thumb.png" },
     new { Title = "Computer : Data Structure and Algorithms | Interview Preparation ", Duration = "7 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\maybe_logo.jpeg" },
-    new { Title = "Demo Course 4", Duration = "45:45", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\demo_thumb.png" },
-    new { Title = "Demo Course 5", Duration = "05:00", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\demo_thumb.png" },
+    new { Title = "Economics: Microeconomics - Supply and Demand", Duration = "45:45", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\squared_intro.jpeg" },
+
+        new { Title = "Psychology: Theories of Personality", Duration = "05:00", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\students_raising_hand.jpeg" },
+                new { Title = "Chemistry : Chapter 4 - Ideal Gas Equation | Gas Laws 2", Duration = "5 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\maybe_logo.jpeg" },
+
+            new { Title = "Networking: Fundamentals of Internet Protocols", Duration = "3.5 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\students_raising_hand.jpeg" },
+
+                new { Title = "Quantum Physics: Principles and Applications", Duration = "16:48", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\demo_thumb.png" },
+
+                    new { Title = "Ethics: Introduction to Moral Philosophy", Duration = "7 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\squared_intro.jpeg" },
+
 };
 
 
@@ -191,74 +199,95 @@ namespace Prabesh_Academy.Modules.Views
                 }
             };
 
-            // 1. Thumbnail Panel (Image with overlay)
-            Panel thumbnailPanel = new Panel
+            //// 1. Thumbnail Panel (Image with overlay)
+            //Panel thumbnailPanel = new Panel
+            //{
+            //    Dock = DockStyle.Fill,
+            //    BackColor = CardThemeColor,
+            //    BackgroundImage = course.Image != null ? Image.FromFile(course.Image) : null,
+            //    BackgroundImageLayout = ImageLayout.Stretch // Maintains aspect ratio
+            //};
+
+
+            if (File.Exists(course.Image))
             {
-                Dock = DockStyle.Fill,
-                BackColor = CardThemeColor,
-                BackgroundImage = course.Image != null ? Image.FromFile(course.Image) : null,
-                BackgroundImageLayout = ImageLayout.Zoom // Maintains aspect ratio
-            };
+                Panel thumbnailPanel = new Panel
+                {
+                    Dock = DockStyle.Fill,
+                    BackColor = CardThemeColor,
+                    BackgroundImage = course.Image != null ? Image.FromFile(course.Image) : null,
+                    BackgroundImageLayout = ImageLayout.Stretch // Maintains aspect ratio
+                };
 
-            // Duration label to overlay on the thumbnail
-            Label durationLabel = new Label
+                // Duration label to overlay on the thumbnail
+                Label durationLabel = new Label
+                {
+                    Text = course.Duration,
+                    Font = new Font("Arial", 10, FontStyle.Bold),
+                    ForeColor = CommonBackColor,
+                    BackColor = Color.Black,
+                    //Padding = new Padding(0, 0, 5, 5),
+                    AutoSize = true,
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+
+                // Add the duration label dynamically at the bottom-right
+                thumbnailPanel.Controls.Add(durationLabel);
+                thumbnailPanel.Resize += (sender, e) =>
+                {
+                    durationLabel.Location = new Point(
+                        thumbnailPanel.Width - durationLabel.Width - 5, // Adjusted offset from the right
+                        thumbnailPanel.Height - durationLabel.Height - 5 // Adjusted offset from the bottom
+                    );
+                };
+
+                // Set rounded corners by creating a region
+                int cornerRadius = 2; // Adjust the radius as needed
+                using (GraphicsPath path = new GraphicsPath())
+                {
+                    // Define the rounded rectangle path
+                    path.AddArc(0, 0, cornerRadius * 2, cornerRadius * 2, 180, 90); // Top-left corner
+                    path.AddArc(durationLabel.Width - cornerRadius * 2, 0, cornerRadius * 2, cornerRadius * 2, 270, 90); // Top-right corner
+                    path.AddArc(durationLabel.Width - cornerRadius * 2, durationLabel.Height - cornerRadius * 2, cornerRadius * 2, cornerRadius * 2, 0, 90); // Bottom-right corner
+                    path.AddArc(0, durationLabel.Height - cornerRadius * 2, cornerRadius * 2, cornerRadius * 2, 90, 90); // Bottom-left corner
+                    path.CloseFigure();
+
+                    // Set the label's region to the rounded rectangle
+                    durationLabel.Region = new Region(path);
+                }
+
+                video_card_layout.Controls.Add(thumbnailPanel, 0, 0);
+            }
+            else
             {
-                Text = course.Duration,
-                Font = new Font("Arial", 10, FontStyle.Bold),
-                ForeColor = CommonBackColor,
-                BackColor = Color.Black,
-                //Padding = new Padding(0, 0, 5, 5),
-                AutoSize = true,
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-
-
-
-            // Add the duration label dynamically at the bottom-right
-            thumbnailPanel.Controls.Add(durationLabel);
-            thumbnailPanel.Resize += (sender, e) =>
-            {
-                durationLabel.Location = new Point(
-                    thumbnailPanel.Width - durationLabel.Width - 5, // Adjusted offset from the right
-                    thumbnailPanel.Height - durationLabel.Height - 5 // Adjusted offset from the bottom
-                );
-            };
-
-            // Set rounded corners by creating a region
-            int cornerRadius = 2; // Adjust the radius as needed
-            using (GraphicsPath path = new GraphicsPath())
-            {
-                // Define the rounded rectangle path
-                path.AddArc(0, 0, cornerRadius * 2, cornerRadius * 2, 180, 90); // Top-left corner
-                path.AddArc(durationLabel.Width - cornerRadius * 2, 0, cornerRadius * 2, cornerRadius * 2, 270, 90); // Top-right corner
-                path.AddArc(durationLabel.Width - cornerRadius * 2, durationLabel.Height - cornerRadius * 2, cornerRadius * 2, cornerRadius * 2, 0, 90); // Bottom-right corner
-                path.AddArc(0, durationLabel.Height - cornerRadius * 2, cornerRadius * 2, cornerRadius * 2, 90, 90); // Bottom-left corner
-                path.CloseFigure();
-
-                // Set the label's region to the rounded rectangle
-                durationLabel.Region = new Region(path);
+                // Handle the case where the file doesn't exist (e.g., log an error, show a default image, etc.)
+                Console.WriteLine("Image not found at: " + course.Image);
             }
 
-            video_card_layout.Controls.Add(thumbnailPanel, 0, 0);
+
+
+
+
+
+            
 
             // 2. Title Label
             Label titleLabel = new Label
             {
                 Text = course.Title,
-                Font = new Font("Arial", 10, FontStyle.Bold),
+                Font = new Font("Arial", 12, FontStyle.Bold),
                 Dock = DockStyle.Fill,
                 ForeColor = Color.DarkBlue,
                 BackColor= CardThemeColor,
                 AutoEllipsis = true,
-                TextAlign = ContentAlignment.TopLeft, // Align text to the left
+                TextAlign = ContentAlignment.MiddleLeft, // Align text to the left
                 Padding = new Padding(2, 3, 0, 3),
-
                 AutoSize = false, // Ensures fixed size within allocated space
-                MaximumSize = new Size(video_card_layout.Width, 0), // Max width for wrapping
+                MaximumSize = new Size(courseCard.Width, 0), // Max width for wrapping
             };
 
             // Limit title text to two lines
-            titleLabel.Text = TruncateTextToTwoLines(titleLabel.Text, titleLabel.Font, video_card_layout.Width);
+            titleLabel.Text = TruncateTextToTwoLines(titleLabel.Text, titleLabel.Font, courseCard.Width-5);
 
             video_card_layout.Controls.Add(titleLabel, 0, 1);
 
