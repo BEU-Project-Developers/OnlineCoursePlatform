@@ -19,7 +19,7 @@ namespace Prabesh_Academy.Modules.Views
         // Initialize UI components
         private void InitializeComponent()
         {
-            this.BackColor = System.Drawing.Color.Black;
+            this.BackColor = System.Drawing.Color.White;
 
             // Back Button
             Button backButton = new Button();
