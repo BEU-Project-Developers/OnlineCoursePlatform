@@ -56,7 +56,7 @@ namespace Prabesh_Academy.Modules.Views
             Label headerLabel = new Label
             {
                 Text = "Welcome to Prabesh Academy 🤗",
-                Font = new Font("Comic Sans MS", 40, FontStyle.Bold),
+                Font = new Font("Comic Sans MS", 30, FontStyle.Bold),
                 ForeColor = Color.DarkGreen,
                 AutoSize = true,  // Set AutoSize to true if you want it to adjust size dynamically
                 //Dock = DockStyle.Fill,  // Allow it to expand in the panel
@@ -110,15 +110,11 @@ namespace Prabesh_Academy.Modules.Views
     new { Title = "Physics : Chapter 18 - Rotational Dynamics | Mechanics", Duration = "3 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\demo_thumb.png" },
     new { Title = "Computer : Data Structure and Algorithms | Interview Preparation ", Duration = "7 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\maybe_logo.jpeg" },
     new { Title = "Economics: Microeconomics - Supply and Demand", Duration = "45:45", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\squared_intro.jpeg" },
-
-        new { Title = "Psychology: Theories of Personality", Duration = "05:00", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\students_raising_hand.jpeg" },
-                new { Title = "Chemistry : Chapter 4 - Ideal Gas Equation | Gas Laws 2", Duration = "5 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\maybe_logo.jpeg" },
-
-            new { Title = "Networking: Fundamentals of Internet Protocols", Duration = "3.5 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\students_raising_hand.jpeg" },
-
-                new { Title = "Quantum Physics: Principles and Applications", Duration = "16:48", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\demo_thumb.png" },
-
-                    new { Title = "Ethics: Introduction to Moral Philosophy", Duration = "7 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\squared_intro.jpeg" },
+    new { Title = "Psychology: Theories of Personality", Duration = "05:00", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\students_raising_hand.jpeg" },
+    new { Title = "Chemistry : Chapter 4 - Ideal Gas Equation | Gas Laws 2", Duration = "5 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\maybe_logo.jpeg" },
+    new { Title = "Networking: Fundamentals of Internet Protocols", Duration = "3.5 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\students_raising_hand.jpeg" },
+    new { Title = "Quantum Physics: Principles and Applications", Duration = "16:48", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\demo_thumb.png" },
+    new { Title = "Ethics: Introduction to Moral Philosophy", Duration = "7 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\squared_intro.jpeg" },
 
 };
 
@@ -263,13 +259,6 @@ namespace Prabesh_Academy.Modules.Views
                 // Handle the case where the file doesn't exist (e.g., log an error, show a default image, etc.)
                 Console.WriteLine("Image not found at: " + course.Image);
             }
-
-
-
-
-
-
-            
 
             // 2. Title Label
             Label titleLabel = new Label

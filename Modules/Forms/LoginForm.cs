@@ -1,4 +1,5 @@
 ﻿using Prabesh_Academy.Modules.Authentication;
+using Prabesh_Academy.Modules.Views;
 
 namespace Prabesh_Academy.Modules.Forms
 {
@@ -148,10 +149,12 @@ namespace Prabesh_Academy.Modules.Forms
 
             if (loginSuccess)
             {
-                MessageBox.Show("Login successful! " +
-                    "Courses are cooking... Wait a while 😉");
-                mainForm.LoadHomePage();
+                //MessageBox.Show("Login successful! " +
+                //    "Courses are cooking... Wait a while 😉");
+            Controls.Clear();
                 // Redirect to the home page or next screen here
+                mainForm.LoadCourseHome();
+
             }
             else
             {

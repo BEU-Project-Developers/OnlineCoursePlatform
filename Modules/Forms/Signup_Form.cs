@@ -9,6 +9,7 @@ namespace Prabesh_Academy.Modules.Forms
     {
         private Main mainForm;
         private TextBox firstNameTextBox, lastNameTextBox, emailTextBox, usernameTextBox, passwordTextBox, confirmPasswordTextBox;
+        private ProgressBar progressBar1;
 
         public SignupForm(Main mainFormInstance)
         {
@@ -66,6 +67,19 @@ namespace Prabesh_Academy.Modules.Forms
                 TextAlign = ContentAlignment.MiddleCenter,
                 //Dock = DockStyle.Top
             };
+            progressBar1 = new ProgressBar
+            {
+                BackColor = Color.White,
+                ForeColor = Color.Orange,
+                //progressBar1.Location = new Point(327, 176);
+                Name = "progressBar1",
+                Size = new Size(100, 10),
+                TabIndex = 4,
+                Visible = false
+            };
+
+
+
 
             // Add title label spanning all columns
             contentLayout.Controls.Add(titleLabel, 0, 0);
@@ -76,7 +90,11 @@ namespace Prabesh_Academy.Modules.Forms
             emailTextBox = AddLabelTextboxPair(contentLayout, "Email:", false, 3);
             usernameTextBox = AddLabelTextboxPair(contentLayout, "Username:", false, 4);
             passwordTextBox = AddLabelTextboxPair(contentLayout, "Password:", false, 5, isPassword: true);
+            contentLayout.Controls.Add(progressBar1);
+
             confirmPasswordTextBox = AddLabelTextboxPair(contentLayout, "Confirm Password:", false, 6, isPassword: true);
+
+            passwordTextBox.TextChanged += passwordTextBox_TextChanged;
 
 
             // Signup Button
@@ -120,6 +138,14 @@ namespace Prabesh_Academy.Modules.Forms
             this.Controls.Add(signupPanel);
         }
 
+        private void passwordTextBox_TextChanged(object sender, EventArgs e)
+        {
+            // Show and update progress bar based on password strength
+            
+            progressBar1.Visible = true;
+            progressBar1.Value = passwordTextBox.Text.Length < 8 ? (int)(passwordTextBox.Text.Length * 12.5) : 100;
+        }
+
         // Example: Inside the Signup button click event
         private void SignupButton_Click(object sender, EventArgs e)
         {
@@ -138,6 +164,13 @@ namespace Prabesh_Academy.Modules.Forms
                 string.IsNullOrEmpty(password) || string.IsNullOrEmpty(confirmPassword))
             {
                 errorMessage = "All fields are required.";
+                MessageBox.Show(errorMessage);  // Show error in MessageBox
+                return;  // Don't proceed if any field is empty
+            }
+
+            if (passwordTextBox.Text.Length < 8)
+            {
+                errorMessage = "Put abit Stronger Password. Minimum Characters 8.";
                 MessageBox.Show(errorMessage);  // Show error in MessageBox
                 return;  // Don't proceed if any field is empty
             }

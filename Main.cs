@@ -9,6 +9,7 @@ namespace Prabesh_Academy
         private LoginForm loginForm;
         private home_page homepage; // Declare homepage here
         private SignupForm signupForm; // Add SignupForm field
+        private Course_Home courseHome; // Replace homepage with Course_Home
 
         public Main()
         {
@@ -28,6 +29,7 @@ namespace Prabesh_Academy
             LoadHomePage();
             //ShowLoginForm();
             //ShowSignupForm();
+            //LoadCourseHome();
         }
 
         public void LoadHomePage()
@@ -42,6 +44,23 @@ namespace Prabesh_Academy
             }
 
             homepage.Visible = true;
+        }
+
+        public void LoadCourseHome() //COurse card after logged in 
+        {
+            loginForm.Visible = false;
+            signupForm.Visible = false;
+            if (homepage != null)
+                homepage.Visible = false;
+            if (courseHome == null) // Create Course_Home instance if it doesn't exist
+            {
+                courseHome = new Course_Home(this) { Dock = DockStyle.Fill };
+                this.Controls.Clear();
+                this.Controls.Add(courseHome);
+            }
+
+            courseHome.Visible = true;
+            courseHome.BringToFront(); // Ensure it appears on top
         }
 
         public void ShowLoginForm()
