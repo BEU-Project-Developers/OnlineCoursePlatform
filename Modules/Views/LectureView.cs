@@ -1,53 +1,46 @@
 ﻿using System;
-using System.Data;
-using Microsoft.Data.SqlClient;
-using System.Configuration;
-using System.Windows.Forms;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using Newtonsoft.Json;
 
 namespace Prabesh_Academy.Modules.Views
 {
     public partial class LectureView : UserControl
     {
-
         private int contentId;
+        private const string ApiBaseUrl = "http://127.0.0.1:5000"; // Replace with your API base URL
 
         public LectureView(Main mainFormInstance, int contentId)
         {
-            //this.FormBorderStyle = FormBorderStyle.None;
-
             if (mainFormInstance != null)
                 mainFormInstance.Controls.Clear();
 
-            this.Dock = DockStyle.Fill; // Ensure the form fills its parent
-
-            this.contentId = contentId; // Initialize contentId
-
-            InitializeComponent(); // Initialize custom layout
-            LoadLectures(); // Load the lectures when the form is initialized
+            this.Dock = DockStyle.Fill;
+            this.contentId = contentId;
+            InitializeComponent();
+            LoadLectures();
         }
-
-
-        private void LoadLectures()
+        private async void LoadLectures()
         {
-            string connectionString = ConfigurationManager.ConnectionStrings["pAcademyCourses"].ConnectionString;
-            string query = "SELECT * FROM Lectures WHERE content_id = @ContentId";
-
             try
             {
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                using (HttpClient client = new HttpClient())
                 {
-                    SqlDataAdapter dataAdapter = new SqlDataAdapter(query, connection);
-                    dataAdapter.SelectCommand.Parameters.AddWithValue("@ContentId", contentId); // Pass the contentId as a parameter
-                    DataTable dataTable = new DataTable();
-                    dataAdapter.Fill(dataTable);
+                    HttpResponseMessage response = await client.GetAsync($"{ApiBaseUrl}/lectures/{contentId}");
+                    response.EnsureSuccessStatusCode();
+                    string jsonResponse = await response.Content.ReadAsStringAsync();
+                    List<dynamic> lectures = JsonConvert.DeserializeObject<List<dynamic>>(jsonResponse);
 
                     // Clear existing rows in the playlist
                     playlistPanel.Controls.Clear();
                     playlistPanel.RowCount = 0;
 
                     // Populate playlist with lecture titles
-                    foreach (DataRow row in dataTable.Rows)
+                    foreach (var lecture in lectures)
                     {
                         int rowIndex = playlistPanel.RowCount++;
                         playlistPanel.RowStyles.Add(new RowStyle(SizeType.AutoSize));
@@ -55,11 +48,11 @@ namespace Prabesh_Academy.Modules.Views
                         // Create a label for each lecture title
                         Label lectureLabel = new Label
                         {
-                            Text = row["title"].ToString(),
+                            Text = (string)lecture.title,
                             Dock = DockStyle.Top,
                             Font = new Font("Arial", 12),
                             Padding = new Padding(10),
-                            Tag = row["lecture_id"], // Store lecture_id for future use
+                            Tag = (int)lecture.lecture_id, // Store lecture_id for future use
                             Cursor = Cursors.Hand,
                             AutoSize = true
                         };
@@ -72,7 +65,8 @@ namespace Prabesh_Academy.Modules.Views
                         lectureLabel.Click += (s, e) =>
                         {
                             int lectureId = (int)((Label)s).Tag;
-                            MessageBox.Show($"Lecture clicked: ID = {lectureId}");
+                            ShowLectureContent(lectureId, (string)lecture.lecture_link, (string)lecture.content);
+
                         };
 
                         // Add the label to the playlist panel
@@ -80,10 +74,56 @@ namespace Prabesh_Academy.Modules.Views
                     }
                 }
             }
+            catch (HttpRequestException ex)
+            {
+                MessageBox.Show($"Http error : {ex.Message}");
+            }
             catch (Exception ex)
             {
-                MessageBox.Show("Error loading lectures: " + ex.Message);
+                MessageBox.Show($"Error: {ex.Message}");
             }
         }
+        private void ShowLectureContent(int lectureId, string lectureLink, string content)
+        {
+            //  Load the lecture content into a panel and add it to form
+            playerPanel.Controls.Clear();
+            //if not a url then just add text
+            if (!string.IsNullOrEmpty(lectureLink))
+            {
+                try
+                {
+                    WebBrowser webBrowser = new WebBrowser
+                    {
+                        Dock = DockStyle.Fill,
+                        Url = new Uri(lectureLink)
+                    };
+                    playerPanel.Controls.Add(webBrowser);
+                }
+                catch (Exception)
+                {
+                    Label contentLabel = new Label
+                    {
+                        Text = content,
+                        Dock = DockStyle.Fill,
+                        Font = new Font("Arial", 10),
+                        TextAlign = ContentAlignment.MiddleCenter
+                    };
+                    playerPanel.Controls.Add(contentLabel);
+                }
+            }
+            else
+            {
+                Label contentLabel = new Label
+                {
+                    Text = content,
+                    Dock = DockStyle.Fill,
+                    Font = new Font("Arial", 10),
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                playerPanel.Controls.Add(contentLabel);
+            }
+        }
+
+
     }
 }

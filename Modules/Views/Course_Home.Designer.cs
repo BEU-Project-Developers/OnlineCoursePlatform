@@ -29,24 +29,21 @@
         private void InitializeComponent()
         {
             flowLayoutPanel1 = new FlowLayoutPanel();
-            flowLayoutPanel1.Dock = DockStyle.Fill; // Make sure it fills the parent UserControl
-            //flowLayoutPanel1.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right; // Anchor to top and sides
-            flowLayoutPanel1.AutoScroll = true;     // Enable scrolling for overflowing content
-            flowLayoutPanel1.FlowDirection = FlowDirection.LeftToRight; // Adjust based on layout preference
-            flowLayoutPanel1.WrapContents = true;  // Allow wrapping to fill available space
-
-
-
             pictureBox1 = new PictureBox();
+            back_button = new Button();
+            flowLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox1).BeginInit();
             SuspendLayout();
             // 
             // flowLayoutPanel1
             // 
-            //flowLayoutPanel1.Location = new Point(57, 83);
-            //flowLayoutPanel1.Name = "flowLayoutPanel1";
-            //flowLayoutPanel1.Size = new Size(682, 332);
-            //flowLayoutPanel1.TabIndex = 0;
+            flowLayoutPanel1.AutoScroll = true;
+            flowLayoutPanel1.Controls.Add(back_button);
+            flowLayoutPanel1.Dock = DockStyle.Fill;
+            flowLayoutPanel1.Location = new Point(0, 0);
+            flowLayoutPanel1.Name = "flowLayoutPanel1";
+            flowLayoutPanel1.Size = new Size(800, 450);
+            flowLayoutPanel1.TabIndex = 2;
             // 
             // pictureBox1
             // 
@@ -56,15 +53,24 @@
             pictureBox1.TabIndex = 1;
             pictureBox1.TabStop = false;
             // 
-            // Form1
+            // back_button
+            // 
+            back_button.Location = new Point(3, 3);
+            back_button.Name = "back_button";
+            back_button.Size = new Size(75, 23);
+            back_button.TabIndex = 0;
+            back_button.Text = "Back";
+            back_button.UseVisualStyleBackColor = true;
+            // 
+            // Course_Home
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(800, 450);
             Controls.Add(pictureBox1);
             Controls.Add(flowLayoutPanel1);
-            Name = "Form1";
-            Text = "Form1";
+            Name = "Course_Home";
+            Size = new Size(800, 450);
+            flowLayoutPanel1.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)pictureBox1).EndInit();
             ResumeLayout(false);
         }
@@ -73,5 +79,6 @@
 
         private FlowLayoutPanel flowLayoutPanel1;
         private PictureBox pictureBox1;
+        private Button back_button;
     }
 }

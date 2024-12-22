@@ -1,55 +1,101 @@
 ﻿using System;
-using System.Data;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Threading.Tasks;
 using System.Windows.Forms;
-using Microsoft.Data.SqlClient;
+using Newtonsoft.Json;
 
 namespace Prabesh_Academy.Modules.Views
 {
     public partial class Course_Home : UserControl
     {
         private Main mainFormInstance;
+        private Stack<NavigationState> _navigationStack = new Stack<NavigationState>();
+        private const string ApiBaseUrl = "http://127.0.0.1:5000"; // Replace with your actual API base URL
+
         public Course_Home(Main mainFormArg)
         {
             mainFormInstance = mainFormArg;
             InitializeComponent();
-
-            this.Dock = DockStyle.Fill; // Ensure the UserControl fills the Main form
-
+            this.Dock = DockStyle.Fill;
             if (mainFormInstance != null)
             {
-                mainFormInstance.Controls.Clear(); // Clear previous controls
-                mainFormInstance.Controls.Add(this); // Add this control to the Main form
+                mainFormInstance.Controls.Clear();
+                mainFormInstance.Controls.Add(this);
             }
+            LoadData();
 
-            LoadEducationalLevels();
+            // Subscribe to back button event
+            this.back_button.Click += BackButton_Click;
+
         }
 
-
-
-        private void LoadEducationalLevels()
+        private async void LoadData()
         {
+            await LoadEducationalLevels();
+        }
+
+        private async Task LoadEducationalLevels()
+        {
+            _navigationStack.Clear();
+            _navigationStack.Push(new NavigationState { LevelId = null, GroupId = null, CourseId = null, SubjectId = null, ParentId = null });
+
+            flowLayoutPanel1.Controls.Clear();
             try
             {
-                string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["pAcademyCourses"].ConnectionString;
-
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                using (HttpClient client = new HttpClient())
                 {
-                    connection.Open();
+                    HttpResponseMessage response = await client.GetAsync($"{ApiBaseUrl}/allAvailableCourses");
+                    response.EnsureSuccessStatusCode();
+                    string jsonResponse = await response.Content.ReadAsStringAsync();
+                    List<dynamic> levels = JsonConvert.DeserializeObject<List<dynamic>>(jsonResponse);
 
-                    string query = "SELECT level_id, level_name FROM EducationalLevels";
-                    SqlCommand command = new SqlCommand(query, connection);
-                    SqlDataReader reader = command.ExecuteReader();
 
-                    while (reader.Read())
+                    foreach (var level in levels)
                     {
-                        int levelId = Convert.ToInt32(reader["level_id"]);
-                        string levelName = reader["level_name"].ToString();
-                        AddLevelCard(levelId, levelName);
+                        AddCard((int)level.id, (string)level.name, "level");
                     }
-
-                    reader.Close();
                 }
+
+            }
+            catch (HttpRequestException ex)
+            {
+                MessageBox.Show($"Http error : {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error: {ex.Message}");
+            }
+
+        }
+
+        private async void LoadGroupsForLevel(int levelId)
+        {
+
+            _navigationStack.Push(new NavigationState { LevelId = levelId, GroupId = null, CourseId = null, SubjectId = null, ParentId = null });
+            flowLayoutPanel1.Controls.Clear();
+            try
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    HttpResponseMessage response = await client.GetAsync($"{ApiBaseUrl}/allAvailableCourses?level_id={levelId}");
+                    response.EnsureSuccessStatusCode();
+                    string jsonResponse = await response.Content.ReadAsStringAsync();
+                    List<dynamic> groups = JsonConvert.DeserializeObject<List<dynamic>>(jsonResponse);
+
+
+                    foreach (var group in groups)
+                    {
+                        AddCard((int)group.id, (string)group.name, "group");
+                    }
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                MessageBox.Show($"Http error : {ex.Message}");
             }
             catch (Exception ex)
             {
@@ -57,57 +103,152 @@ namespace Prabesh_Academy.Modules.Views
             }
         }
 
-        private void AddLevelCard(int levelId, string levelName)
+        private async void LoadCoursesForGroup(int groupId)
         {
-            Panel card = new Panel
-            {
-                Size = new Size((flowLayoutPanel1.ClientSize.Width - 60)/3, 80), // Dynamically adjust width
-                BackColor = Color.LightGray,
-                Margin = new Padding(10),
-                Tag = levelId,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right // Ensure resizing
-            };
-
-
-            Label lblLevelName = new Label
-            {
-                Text = $"Level: {levelName}",
-                Font = new Font("Arial", 10, FontStyle.Bold),
-                Location = new Point(10, 10),
-                AutoSize = true
-            };
-
-            card.Controls.Add(lblLevelName);
-            card.Click += (sender, e) => LoadGroupsForLevel(levelId);
-            flowLayoutPanel1.Controls.Add(card);
-        }
-
-        private void LoadGroupsForLevel(int levelId)
-        {
-            flowLayoutPanel1.Controls.Clear(); // Clear previous content
+            _navigationStack.Push(new NavigationState { LevelId = _navigationStack.Peek().LevelId, GroupId = groupId, CourseId = null, SubjectId = null, ParentId = null });
+            flowLayoutPanel1.Controls.Clear();
 
             try
             {
-                string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["pAcademyCourses"].ConnectionString;
-
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                using (HttpClient client = new HttpClient())
                 {
-                    connection.Open();
+                    HttpResponseMessage response = await client.GetAsync($"{ApiBaseUrl}/allAvailableCourses?level_id={_navigationStack.Peek().LevelId}&group_id={groupId}");
+                    response.EnsureSuccessStatusCode();
+                    string jsonResponse = await response.Content.ReadAsStringAsync();
+                    List<dynamic> courses = JsonConvert.DeserializeObject<List<dynamic>>(jsonResponse);
 
-                    string query = "SELECT group_id, map_description FROM EducationalLevel_CoursesMapping WHERE level_id = @levelId";
-                    SqlCommand command = new SqlCommand(query, connection);
-                    command.Parameters.AddWithValue("@levelId", levelId);
-                    SqlDataReader reader = command.ExecuteReader();
 
-                    while (reader.Read())
+                    foreach (var course in courses)
                     {
-                        int groupId = Convert.ToInt32(reader["group_id"]);
-                        string mapDescription = reader["map_description"].ToString();
-                        AddGroupCard(groupId, mapDescription);
+                        AddCard((int)course.id, (string)course.name, "course");
+                    }
+                }
+
+            }
+            catch (HttpRequestException ex)
+            {
+                MessageBox.Show($"Http error : {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error: {ex.Message}");
+            }
+        }
+        private async void ShowCourseDetails(int courseId)
+        {
+            flowLayoutPanel1.Controls.Clear();
+            try
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    HttpResponseMessage response = await client.GetAsync($"{ApiBaseUrl}/allAvailableCourses?level_id={_navigationStack.Peek().LevelId}&group_id={_navigationStack.Peek().GroupId}&course_id={courseId}");
+                    response.EnsureSuccessStatusCode();
+                    string jsonResponse = await response.Content.ReadAsStringAsync();
+                    dynamic result = JsonConvert.DeserializeObject<dynamic>(jsonResponse);
+                    if (result is Newtonsoft.Json.Linq.JObject && result.ContainsKey("type") && result.type == "subject_id")
+                    {
+                        _navigationStack.Push(new NavigationState { LevelId = _navigationStack.Peek().LevelId, GroupId = _navigationStack.Peek().GroupId, CourseId = courseId, SubjectId = (int)result.data, ParentId = null });
+                        if (result.ContainsKey("contents"))
+                        {
+                            DisplayContentHierarchy(JsonConvert.DeserializeObject<List<dynamic>>(result.contents.ToString()));
+
+                        }
+                        else
+                        {
+                            ShowSubjectDetails((int)result.data);
+                        }
+                    }
+                    else if (result is Newtonsoft.Json.Linq.JArray)
+                    {
+                        _navigationStack.Push(new NavigationState { LevelId = _navigationStack.Peek().LevelId, GroupId = _navigationStack.Peek().GroupId, CourseId = courseId, SubjectId = null, ParentId = null });
+
+                        List<dynamic> subjects = JsonConvert.DeserializeObject<List<dynamic>>(jsonResponse);
+                        if (subjects.Count == 1)
+                        {
+                            ShowSubjectDetails((int)subjects[0].id);
+                        }
+                        else
+                        {
+                            foreach (var subject in subjects)
+                            {
+                                AddCard((int)subject.id, (string)subject.name, (string)subject.type, (string)subject.description);
+                            }
+                        }
                     }
 
-                    reader.Close();
                 }
+            }
+            catch (HttpRequestException ex)
+            {
+                MessageBox.Show($"Http error : {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error: {ex.Message}");
+            }
+        }
+        private async void ShowSubjectDetails(int subjectId)
+        {
+            _navigationStack.Push(new NavigationState { LevelId = _navigationStack.Peek().LevelId, GroupId = _navigationStack.Peek().GroupId, CourseId = _navigationStack.Peek().CourseId, SubjectId = subjectId, ParentId = null });
+            flowLayoutPanel1.Controls.Clear();
+            try
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    HttpResponseMessage response = await client.GetAsync($"{ApiBaseUrl}/allAvailableCourses?level_id={_navigationStack.Peek().LevelId}&group_id={_navigationStack.Peek().GroupId}&course_id={_navigationStack.Peek().CourseId}&subject_id={subjectId}");
+                    response.EnsureSuccessStatusCode();
+                    string jsonResponse = await response.Content.ReadAsStringAsync();
+                    dynamic result = JsonConvert.DeserializeObject<dynamic>(jsonResponse);
+                    if (result is Newtonsoft.Json.Linq.JArray)
+                    {
+                        DisplayContentHierarchy(JsonConvert.DeserializeObject<List<dynamic>>(jsonResponse));
+                    }
+                    else if (result.ContainsKey("contents"))
+                    {
+                        DisplayContentHierarchy(JsonConvert.DeserializeObject<List<dynamic>>(result.contents.ToString()));
+                    }
+
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                MessageBox.Show($"Http error : {ex.Message}");
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error: {ex.Message}");
+            }
+        }
+        private async void LoadContentChildren(int subjectId, int? parentId)
+        {
+            _navigationStack.Push(new NavigationState { LevelId = _navigationStack.Peek().LevelId, GroupId = _navigationStack.Peek().GroupId, CourseId = _navigationStack.Peek().CourseId, SubjectId = subjectId, ParentId = parentId });
+            flowLayoutPanel1.Controls.Clear();
+            try
+            {
+                using (HttpClient client = new HttpClient())
+                {
+                    string url = $"{ApiBaseUrl}/allAvailableCourses?level_id={_navigationStack.Peek().LevelId}&group_id={_navigationStack.Peek().GroupId}&course_id={_navigationStack.Peek().CourseId}&subject_id={subjectId}";
+                    if (parentId.HasValue)
+                    {
+                        url += $"&parent_id={parentId}";
+                    }
+                    HttpResponseMessage response = await client.GetAsync(url);
+                    response.EnsureSuccessStatusCode();
+                    string jsonResponse = await response.Content.ReadAsStringAsync();
+                    dynamic result = JsonConvert.DeserializeObject<dynamic>(jsonResponse);
+                    if (result is Newtonsoft.Json.Linq.JArray)
+                    {
+                        DisplayContentHierarchy(JsonConvert.DeserializeObject<List<dynamic>>(jsonResponse));
+                    }
+                    else if (result.ContainsKey("contents"))
+                    {
+                        DisplayContentHierarchy(JsonConvert.DeserializeObject<List<dynamic>>(result.contents.ToString()));
+                    }
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                MessageBox.Show($"Http error : {ex.Message}");
             }
             catch (Exception ex)
             {
@@ -115,325 +256,156 @@ namespace Prabesh_Academy.Modules.Views
             }
         }
 
-        private void AddGroupCard(int groupId, string mapDescription)
+        private void DisplayContentHierarchy(List<dynamic> contentList)
         {
-            Panel card = new Panel
-            {
-                Size = new Size((flowLayoutPanel1.ClientSize.Width - 60)/3, 80), // Dynamically adjust width
-                BackColor = Color.LightGray,
-                Margin = new Padding(10),
-                Tag = groupId,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right // Ensure resizing
-            };
-
-
-            Label lblDescription = new Label
-            {
-                Text = $"Group: {mapDescription}",
-                Font = new Font("Arial", 10, FontStyle.Bold),
-                Location = new Point(10, 10),
-                AutoSize = true
-            };
-
-            card.Controls.Add(lblDescription);
-            card.Click += (sender, e) => LoadCoursesForGroup(groupId);
-            flowLayoutPanel1.Controls.Add(card);
-        }
-
-        private void LoadCoursesForGroup(int groupId)
-        {
-            flowLayoutPanel1.Controls.Clear(); // Clear previous content
-
-            try
-            {
-                string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["pAcademyCourses"].ConnectionString;
-
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-
-                    string query = "SELECT Courses.course_id, Courses.course_name FROM Courses " +
-                                   "INNER JOIN CourseMapping ON Courses.course_id = CourseMapping.course_id " +
-                                   "WHERE CourseMapping.group_id = @groupId";
-                    SqlCommand command = new SqlCommand(query, connection);
-                    command.Parameters.AddWithValue("@groupId", groupId);
-                    SqlDataReader reader = command.ExecuteReader();
-
-                    while (reader.Read())
-                    {
-                        int courseId = Convert.ToInt32(reader["course_id"]);
-                        string courseName = reader["course_name"].ToString();
-                        AddCourseCard(courseId, courseName);
-                    }
-
-                    reader.Close();
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error: {ex.Message}");
-            }
-        }
-
-        private void AddCourseCard(int courseId, string courseName)
-        {
-            Panel card = new Panel
-            {
-                Size = new Size((flowLayoutPanel1.ClientSize.Width - 60)/3, 80), // Dynamically adjust width
-                BackColor = Color.LightGray,
-                Margin = new Padding(10),
-                Tag = courseId,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right // Ensure resizing
-            };
-
-            Label lblCourseName = new Label
-            {
-                Text = $"Course: {courseName}",
-                Font = new Font("Arial", 10, FontStyle.Bold),
-                TextAlign = ContentAlignment.MiddleCenter,
-                Location = new Point(10, 10),
-                AutoSize = true
-            };
-
-            card.Controls.Add(lblCourseName);
-            card.Click += (sender, e) => ShowCourseDetails(courseId); // Define this method to handle lectures or further details
-            flowLayoutPanel1.Controls.Add(card);
-        }
-
-        private void ShowCourseDetails(int courseId)
-        {
-            // Check for multiple subjects in the course
-            try
-            {
-                string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["pAcademyCourses"].ConnectionString;
-
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-
-                    // Query to check subject count for the course
-                    string query = "SELECT COUNT(*) FROM SubjectCourseMappings WHERE course_id = @courseId";
-                    SqlCommand command = new SqlCommand(query, connection);
-                    command.Parameters.AddWithValue("@courseId", courseId);
-                    int subjectCount = (int)command.ExecuteScalar();
-
-                    if (subjectCount > 1)
-                    {
-                        // If multiple subjects, load subjects
-                        LoadSubjectsForCourse(courseId);
-                    }
-                    else
-                    {
-                        // If single subject, directly fetch and return the subject_id
-                        query = "SELECT subject_id FROM SubjectCourseMappings WHERE course_id = @courseId";
-                        SqlCommand subjectCommand = new SqlCommand(query, connection);
-                        subjectCommand.Parameters.AddWithValue("@courseId", courseId);
-                        int subjectId = (int)subjectCommand.ExecuteScalar();
-
-                        // Proceed to lecture or further action using subjectId
-                        ShowSubjectDetails(subjectId); // or any other operation
-                    }
-                }
-
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error: {ex.Message}");
-            }
-        }
-
-        private void LoadSubjectsForCourse(int courseId)
-        {
-            flowLayoutPanel1.Controls.Clear(); // Clear previous content
-
-            try
-            {
-                string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["pAcademyCourses"].ConnectionString;
-
-                using (SqlConnection connection = new SqlConnection(connectionString))
-                {
-                    connection.Open();
-
-                    // Query to fetch subjects for the course
-                    string query = "SELECT Subjects.subject_id, Subjects.subject_name, Subjects.description " +
-                                   "FROM Subjects " +
-                                   "INNER JOIN SubjectCourseMappings ON Subjects.subject_id = SubjectCourseMappings.subject_id " +
-                                   "WHERE SubjectCourseMappings.course_id = @courseId";
-                    SqlCommand command = new SqlCommand(query, connection);
-                    command.Parameters.AddWithValue("@courseId", courseId);
-                    SqlDataReader reader = command.ExecuteReader();
-
-                    // Add cards for each subject
-                    while (reader.Read())
-                    {
-                        int subjectId = Convert.ToInt32(reader["subject_id"]);
-                        string subjectName = reader["subject_name"].ToString();
-                        string description = reader["description"].ToString();
-                        AddSubjectCard(subjectId, subjectName, description);
-                    }
-
-                    reader.Close();
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Error: {ex.Message}");
-            }
-        }
-
-        private void AddSubjectCard(int subjectId, string subjectName, string description)
-        {
-            Panel card = new Panel
-            {
-                Size = new Size((flowLayoutPanel1.ClientSize.Width - 60)/3, 80), // Dynamically adjust width
-                BackColor = Color.LightSalmon,
-                Margin = new Padding(10),
-                Tag = subjectId,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right // Ensure resizing
-            };
-
-            Label lblSubjectName = new Label
-            {
-                Text = $"Subject: {subjectName}",
-                TextAlign= ContentAlignment.MiddleCenter,
-                Font = new Font("Arial", 10, FontStyle.Bold),
-                Location = new Point(10, 10),
-                AutoSize = true
-            };
-
-            Label lblDescription = new Label
-            {
-                Text = $"Description: {description}",
-                Font = new Font("Arial", 9),
-                Location = new Point(10, 30),
-                AutoSize = true
-            };
-
-            card.Controls.Add(lblSubjectName);
-            card.Controls.Add(lblDescription);
-            card.Click += (sender, e) => ShowSubjectDetails(subjectId); // Define this for further navigation if required
-            flowLayoutPanel1.Controls.Add(card);
-        }
-        private void ShowSubjectDetails(int subjectId)
-        {
-            ContentRetriever retriever = new ContentRetriever();
-            List<HierarchicalContent> contentList = retriever.GetContentBySubject(subjectId);
-
-            // Check if data was retrieved
-            if (contentList.Count == 0)
-            {
-                MessageBox.Show("No content found for the selected subject.");
-                return;
-            }
-
-            // Clear existing content
-            flowLayoutPanel1.Controls.Clear(); // Clear previous content
-
-            // Display the hierarchy
-            DisplayContentHierarchy(contentList, null); // Pass 'null' as ParentId for top-level content
-        }
-        private void DisplayContentHierarchy(List<HierarchicalContent> contentList, int? parentId)
-        {
-            // Create a dictionary to hold the hierarchy (ContentId -> List of child content)
-            var hierarchy = new Dictionary<int, List<HierarchicalContent>>();
-
-            // Populate the hierarchy with parent-child relationships
             foreach (var content in contentList)
             {
-                if (content.ParentId.HasValue)
-                {
-                    if (!hierarchy.ContainsKey(content.ParentId.Value))
-                        hierarchy[content.ParentId.Value] = new List<HierarchicalContent>();
-                    hierarchy[content.ParentId.Value].Add(content);
-                }
+                DisplayContentCard(content);
             }
 
-            // Get the top-level content (i.e., content with no parent)
-            var topLevelContent = contentList.Where(c => c.ParentId == parentId).ToList();
-
-            if (topLevelContent.Count == 0 && parentId == null)
-            {
-                MessageBox.Show("No top-level content found.");
-                return;
-            }
-
-            // Display the content for each parent level
-            foreach (var content in topLevelContent)
-            {
-                DisplayContentCard(content, hierarchy);
-            }
         }
 
-        private void DisplayContentCard(HierarchicalContent content, Dictionary<int, List<HierarchicalContent>> hierarchy)
+        private void DisplayContentCard(dynamic content)
         {
             Panel contentCard = new Panel
             {
-                Size = new Size((flowLayoutPanel1.ClientSize.Width - 60)/3, 80), // Dynamically adjust width
-                BackColor = Color.LightGoldenrodYellow, // Use desired background color
+                Size = new Size((flowLayoutPanel1.ClientSize.Width - 60) / 3, 80),
+                BackColor = Color.LightGray,
                 Margin = new Padding(10),
-                Tag = content.ContentId, // Store the ContentId for identification
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right // Ensure resizing
+                Tag = content.content_id,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
-            // Add content name to the card
             Label contentLabel = new Label
             {
-                Text = content.ContentName,
+                Text = (string)content.content_name,
                 TextAlign = ContentAlignment.MiddleCenter,
-
-                Font = new Font("Arial", 10, FontStyle.Bold), // Optional font styling
-                Location = new Point(10, 10), // Position within the card
-                AutoSize = true // Ensure proper size for text
+                Font = new Font("Arial", 10, FontStyle.Bold),
+                Location = new Point(10, 10),
+                AutoSize = true
             };
-
             contentCard.Controls.Add(contentLabel);
-            flowLayoutPanel1.Controls.Add(contentCard); // Add the card to the container
+            flowLayoutPanel1.Controls.Add(contentCard);
 
-            // Add a click event handler to expand/collapse children
-            contentCard.Click += (sender, e) =>
+            contentCard.Click += async (sender, e) =>
             {
-                // Handle click event to show child content
-                Panel clickedCard = (Panel)sender;
-                int contentId = (int)clickedCard.Tag; // Get the ContentId from the card's Tag
-
-                if (hierarchy.ContainsKey(contentId))
+                int? contentId = null;
+                if (content.content_id != null)
                 {
-                    // Check if child content exists
-                    var childContent = hierarchy[contentId];
-
-                    if (childContent.Count > 0)
-                    {
-                        // Clear previous content and display children
-                        flowLayoutPanel1.Controls.Clear();
-                        foreach (var child in childContent)
-                        {
-                            DisplayContentCard(child, hierarchy);  // Recursively display child content
-                        }
-                    }
-                    else
-                    {
-                        // End of the hierarchy reached, show a message for lectures
-                        //MessageBox.Show("Lectures coming soon for: " + content.ContentName);
-                        LectureView lectureView = new LectureView(mainFormInstance, contentId) { Dock = DockStyle.Fill };  // 'this' refers to the current form, typically 'Main'
-                        mainFormInstance.Controls.Clear();
-                        mainFormInstance.Controls.Add(lectureView); // Add to Main form dynamically
-
-                    }
+                    contentId = (int)content.content_id;
+                }
+                if (content.ContainsKey("containsChildren") && content.containsChildren == true)
+                {
+                    LoadContentChildren(_navigationStack.Peek().SubjectId.Value, contentId);
                 }
                 else
                 {
-                    // End of the hierarchy reached, show a message for lectures
-                    LectureView lectureView = new LectureView(mainFormInstance, contentId)
+                    if (contentId.HasValue)
                     {
-                        Dock = DockStyle.Fill
-                    };  // 'this' refers to the current form, typically 'Main'
-                    mainFormInstance.Controls.Clear();
-                    mainFormInstance.Controls.Add(lectureView); // Add to Main form dynamically
+                        LectureView lectureView = new LectureView(mainFormInstance, contentId.Value) { Dock = DockStyle.Fill };
+                        mainFormInstance.Controls.Clear();
+                        mainFormInstance.Controls.Add(lectureView);
+                    }
+                    else
+                    {
+                        MessageBox.Show("Invalid Content Id");
+                    }
                 }
             };
         }
+        private void AddCard(int id, string name, string type, string description = null)
+        {
+            Panel card = new Panel
+            {
+                Size = new Size((flowLayoutPanel1.ClientSize.Width - 60) / 3, 80),
+                BackColor = Color.LightGray,
+                Margin = new Padding(10),
+                Tag = id,
+                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
+            };
 
+            Label lblName = new Label
+            {
+                Text = $"{type.ToUpper()}: {name}",
+                Font = new Font("Arial", 10, FontStyle.Bold),
+                Location = new Point(10, 10),
+                AutoSize = true
+            };
+            card.Controls.Add(lblName);
 
-
+            if (description != null)
+            {
+                Label lblDescription = new Label
+                {
+                    Text = $"Description: {description}",
+                    Font = new Font("Arial", 9),
+                    Location = new Point(10, 30),
+                    AutoSize = true
+                };
+                card.Controls.Add(lblDescription);
+            }
+            card.Click += (sender, e) =>
+            {
+                switch (type)
+                {
+                    case "level":
+                        LoadGroupsForLevel(id);
+                        break;
+                    case "group":
+                        LoadCoursesForGroup(id);
+                        break;
+                    case "course":
+                        ShowCourseDetails(id);
+                        break;
+                    case "subject":
+                        ShowSubjectDetails(id);
+                        break;
+                }
+            };
+            flowLayoutPanel1.Controls.Add(card);
+        }
+        private void BackButton_Click(object sender, EventArgs e)
+        {
+            if (_navigationStack.Count > 1)
+            {
+                _navigationStack.Pop(); // Remove the current state
+                var previousState = _navigationStack.Peek();
+                if (previousState.SubjectId.HasValue)
+                {
+                    if (previousState.ParentId.HasValue)
+                    {
+                        LoadContentChildren(previousState.SubjectId.Value, previousState.ParentId);
+                    }
+                    else
+                    {
+                        ShowSubjectDetails(previousState.SubjectId.Value);
+                    }
+                }
+                else if (previousState.CourseId.HasValue)
+                {
+                    ShowCourseDetails(previousState.CourseId.Value);
+                }
+                else if (previousState.GroupId.HasValue)
+                {
+                    LoadCoursesForGroup(previousState.GroupId.Value);
+                }
+                else if (previousState.LevelId.HasValue)
+                {
+                    LoadGroupsForLevel(previousState.LevelId.Value);
+                }
+                else
+                {
+                    LoadEducationalLevels();
+                }
+            }
+        }
+        private class NavigationState
+        {
+            public int? LevelId { get; set; }
+            public int? GroupId { get; set; }
+            public int? CourseId { get; set; }
+            public int? SubjectId { get; set; }
+            public int? ParentId { get; set; }
+        }
     }
 }

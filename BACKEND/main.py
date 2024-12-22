@@ -1,10 +1,11 @@
 from flask import Flask, request, jsonify
 import pyodbc
 from werkzeug.security import generate_password_hash, check_password_hash
+from collections import defaultdict
 
 app = Flask(__name__)
 
-# Database connection string
+# Database connection strings
 DATABASE_CONFIG = {
     "DRIVER": "{ODBC Driver 17 for SQL Server}",
     "SERVER": "MY2NDGF",
@@ -12,14 +13,21 @@ DATABASE_CONFIG = {
     "Trusted_Connection": "Yes",
 }
 
+COURSES_DATABASE_CONFIG = {
+    "DRIVER": "{ODBC Driver 17 for SQL Server}",
+    "SERVER": "MY2NDGF",
+    "DATABASE": "courses",
+    "Trusted_Connection": "Yes",
+}
 
-def get_db_connection():
+
+def get_db_connection(database_config):
     try:
         conn = pyodbc.connect(
-            f"DRIVER={DATABASE_CONFIG['DRIVER']};"
-            f"SERVER={DATABASE_CONFIG['SERVER']};"
-            f"DATABASE={DATABASE_CONFIG['DATABASE']};"
-            f"Trusted_Connection={DATABASE_CONFIG['Trusted_Connection']};"
+            f"DRIVER={database_config['DRIVER']};"
+            f"SERVER={database_config['SERVER']};"
+            f"DATABASE={database_config['DATABASE']};"
+            f"Trusted_Connection={database_config['Trusted_Connection']};"
         )
         return conn
     except Exception as e:
@@ -36,7 +44,7 @@ def login():
 
     try:
         # Connect to the database
-        conn = get_db_connection()
+        conn = get_db_connection(DATABASE_CONFIG)
         cursor = conn.cursor()
 
         # Query to retrieve the stored password hash
@@ -74,7 +82,7 @@ def signup():
 
     try:
         # Connect to the database
-        conn = get_db_connection()
+        conn = get_db_connection(DATABASE_CONFIG)
         cursor = conn.cursor()
 
         # Check if the username or email already exists
@@ -106,6 +114,190 @@ def signup():
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
     finally:
         conn.close()
+
+
+@app.route("/allAvailableCourses", methods=["GET"])
+def get_all_available_courses():
+    level_id = request.args.get("level_id", type=int)
+    group_id = request.args.get("group_id", type=int)
+    course_id = request.args.get("course_id", type=int)
+    subject_id = request.args.get("subject_id", type=int)
+    parent_id = request.args.get("parent_id", type=int)
+
+    try:
+        conn = get_db_connection(COURSES_DATABASE_CONFIG)
+        cursor = conn.cursor()
+
+        if (
+            level_id is None
+            and group_id is None
+            and course_id is None
+            and subject_id is None
+            and parent_id is None
+        ):
+            # Fetch Educational Levels
+            query = "SELECT level_id, level_name FROM EducationalLevels"
+            cursor.execute(query)
+            levels = cursor.fetchall()
+
+            data = [
+                {"type": "level", "id": level[0], "name": level[1]} for level in levels
+            ]
+            return jsonify(data), 200
+
+        elif (
+            level_id is not None
+            and group_id is None
+            and course_id is None
+            and subject_id is None
+            and parent_id is None
+        ):
+            # Fetch Groups for a level
+            query = "SELECT group_id, map_description FROM EducationalLevel_CoursesMapping WHERE level_id = ?"
+            cursor.execute(query, level_id)
+            groups = cursor.fetchall()
+            data = [
+                {"type": "group", "id": group[0], "name": group[1]} for group in groups
+            ]
+            return jsonify(data), 200
+
+        elif (
+            level_id is not None
+            and group_id is not None
+            and course_id is None
+            and subject_id is None
+            and parent_id is None
+        ):
+            # Fetch Courses for a group
+            query = """
+                SELECT Courses.course_id, Courses.course_name 
+                FROM Courses 
+                INNER JOIN CourseMapping ON Courses.course_id = CourseMapping.course_id 
+                WHERE CourseMapping.group_id = ?
+            """
+            cursor.execute(query, group_id)
+            courses = cursor.fetchall()
+            data = [
+                {"type": "course", "id": course[0], "name": course[1]}
+                for course in courses
+            ]
+            return jsonify(data), 200
+
+        elif (
+            level_id is not None
+            and group_id is not None
+            and course_id is not None
+            and subject_id is None
+            and parent_id is None
+        ):
+            # Fetch subjects or single subject id
+            # Check subject count
+            query_check_subjects = (
+                "SELECT COUNT(*) FROM SubjectCourseMappings WHERE course_id = ?"
+            )
+            cursor.execute(query_check_subjects, course_id)
+            subject_count = cursor.fetchone()[0]
+            query_subjects = """
+                    SELECT Subjects.subject_id, Subjects.subject_name, Subjects.description
+                    FROM Subjects
+                    INNER JOIN SubjectCourseMappings ON Subjects.subject_id = SubjectCourseMappings.subject_id
+                    WHERE SubjectCourseMappings.course_id = ?
+                """
+            cursor.execute(query_subjects, course_id)
+            subjects = cursor.fetchall()
+            data = [
+                {
+                    "type": "subject",
+                    "id": subject[0],
+                    "name": subject[1],
+                    "description": subject[2],
+                }
+                for subject in subjects
+            ]
+
+            return jsonify(data), 200
+        elif (
+            level_id is not None
+            and group_id is not None
+            and course_id is not None
+            and subject_id is not None
+        ):
+            # Fetch Hierarchical Content for a subject
+            query = """
+                    SELECT content_id, content_name, parent_id
+                    FROM HierarchicalContent
+                    WHERE subject_id = ?
+                """
+            cursor.execute(query, subject_id)
+            contents = cursor.fetchall()
+
+            content_list = []
+
+            for content in contents:
+                has_children = False
+                for check_content in contents:
+                    if check_content[2] == content[0]:
+                        has_children = True
+                        break
+
+                if parent_id is None:
+                    if content[2] is None:
+                        content_list.append(
+                            {
+                                "content_id": content[0],
+                                "content_name": content[1],
+                                "parent_id": content[2],
+                                "containsChildren": has_children,
+                            }
+                        )
+                elif content[2] == parent_id:
+                    content_list.append(
+                        {
+                            "content_id": content[0],
+                            "content_name": content[1],
+                            "parent_id": content[2],
+                            "containsChildren": has_children,
+                        }
+                    )
+            return jsonify(content_list), 200
+
+        else:
+            return jsonify({"error": "Invalid request parameters"}), 400
+
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+    finally:
+        conn.close()
+
+
+@app.route("/lectures/<int:content_id>", methods=["GET"])
+def get_lectures_for_content(content_id):
+    try:
+        conn = get_db_connection(COURSES_DATABASE_CONFIG)
+        cursor = conn.cursor()
+
+        query = "SELECT lecture_id, lecture_no, lecture_link, lecture_data, title, description FROM Lectures WHERE content_id = ?"
+        cursor.execute(query, content_id)
+        lectures = cursor.fetchall()
+
+        lecture_list = [
+            {
+                "lecture_id": lecture[0],
+                "lecture_no": lecture[1],
+                "lecture_link": lecture[2],
+                "lecture_data": lecture[3],
+                "title": lecture[4],
+                "description": lecture[5],
+            }
+            for lecture in lectures
+        ]
+        return jsonify(lecture_list), 200
+
+    except Exception as e:
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+    finally:
+        if "conn" in locals() and conn:
+            conn.close()
 
 
 if __name__ == "__main__":
