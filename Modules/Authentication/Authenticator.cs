@@ -1,14 +1,17 @@
 ﻿using System;
-using System.Data.SqlClient;
-using System.Security.Cryptography;
+using System.Net.Http;
 using System.Text;
+using System.Security.Cryptography;
+using System.Threading.Tasks;
+using Newtonsoft.Json;
 using System.Windows.Forms;
-using Microsoft.Data.SqlClient;
 
 namespace Prabesh_Academy.Modules.Authentication
 {
     internal class Authenticator
     {
+        private static readonly HttpClient client = new HttpClient { BaseAddress = new Uri("http://127.0.0.1:5000/") };
+
         // Method to hash password using SHA256
         private string HashPassword(string password)
         {
@@ -34,40 +37,32 @@ namespace Prabesh_Academy.Modules.Authentication
 
             try
             {
-                // Construct connection string (should be from your config file)
-                string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["pAcademyDBstring"].ConnectionString;
-
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                // Create request data
+                var requestData = new
                 {
-                    connection.Open();
+                    first_name = firstName,
+                    last_name = lastName,
+                    email = email,
+                    username = username,
+                    password = HashPassword(password)  // Send hashed password
+                };
 
-                    // Check if username already exists
-                    string checkQuery = "SELECT COUNT(*) FROM Users WHERE Username = @Username";
-                    SqlCommand checkCmd = new SqlCommand(checkQuery, connection);
-                    checkCmd.Parameters.AddWithValue("@Username", username);
+                var json = JsonConvert.SerializeObject(requestData);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                    int userCount = (int)checkCmd.ExecuteScalar();
-                    if (userCount > 0)
-                    {
-                        errorMessage = "Username already exists.";
-                        return false;
-                    }
+                // Send POST request to the signup endpoint
+                HttpResponseMessage response = Task.Run(() => client.PostAsync("signup", content)).Result;
 
-                    // Hash the password before saving
-                    string hashedPassword = HashPassword(password);
-
-                    // Insert new user with hashed password
-                    string insertQuery = "INSERT INTO Users (FirstName, LastName, Email, Username, PasswordHash) VALUES (@FirstName, @LastName, @Email, @Username, @Password)";
-                    SqlCommand insertCmd = new SqlCommand(insertQuery, connection);
-                    insertCmd.Parameters.AddWithValue("@FirstName", firstName);
-                    insertCmd.Parameters.AddWithValue("@LastName", lastName);
-                    insertCmd.Parameters.AddWithValue("@Email", email);
-                    insertCmd.Parameters.AddWithValue("@Username", username);
-                    insertCmd.Parameters.AddWithValue("@Password", hashedPassword);  // Store hashed password
-
-                    insertCmd.ExecuteNonQuery();
+                if (response.IsSuccessStatusCode)
+                {
                     MessageBox.Show("Sign up successful!");
                     return true;
+                }
+                else
+                {
+                    errorMessage = response.Content.ReadAsStringAsync().Result;
+                    MessageBox.Show($"Error: {errorMessage}");
+                    return false;
                 }
             }
             catch (Exception ex)
@@ -85,34 +80,29 @@ namespace Prabesh_Academy.Modules.Authentication
 
             try
             {
-                // Construct connection string (should be from your config file)
-                string connectionString = System.Configuration.ConfigurationManager.ConnectionStrings["pAcademyDBstring"].ConnectionString;
-
-                using (SqlConnection connection = new SqlConnection(connectionString))
+                // Create request data
+                var requestData = new
                 {
-                    connection.Open();
+                    username_or_email = usernameOrEmail,
+                    password = HashPassword(password)  // Send hashed password
+                };
 
-                    // Hash the entered password to compare with the stored hash
-                    string hashedPassword = HashPassword(password);
+                var json = JsonConvert.SerializeObject(requestData);
+                var content = new StringContent(json, Encoding.UTF8, "application/json");
 
-                    // Query to check login credentials based on either username or email
-                    string query = "SELECT COUNT(*) FROM Users WHERE (Username = @UsernameOrEmail OR Email = @UsernameOrEmail) AND PasswordHash = @Password";
-                    SqlCommand command = new SqlCommand(query, connection);
-                    command.Parameters.AddWithValue("@UsernameOrEmail", usernameOrEmail);  // Check for both username or email
-                    command.Parameters.AddWithValue("@Password", hashedPassword);  // Compare with hashed password
+                // Send POST request to the login endpoint
+                HttpResponseMessage response = Task.Run(() => client.PostAsync("login", content)).Result;
 
-                    int result = (int)command.ExecuteScalar();
-                    if (result > 0)
-                    {
-                        //MessageBox.Show("Login successful!");
-                        return true;
-                    }
-                    else
-                    {
-                        errorMessage = "Invalid username/email or password.";
-                        MessageBox.Show(errorMessage);  // Show error in MessageBox
-                        return false;
-                    }
+                if (response.IsSuccessStatusCode)
+                {
+                    // MessageBox.Show("Login successful!");
+                    return true;
+                }
+                else
+                {
+                    errorMessage = response.Content.ReadAsStringAsync().Result;
+                    MessageBox.Show($"Error: {errorMessage}");
+                    return false;
                 }
             }
             catch (Exception ex)
@@ -122,6 +112,5 @@ namespace Prabesh_Academy.Modules.Authentication
                 return false;
             }
         }
-
     }
 }
