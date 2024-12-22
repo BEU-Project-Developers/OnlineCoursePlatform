@@ -5,30 +5,53 @@ using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using System.Windows.Forms;
+using Newtonsoft.Json.Linq;
+using System.Configuration;
 
 namespace Prabesh_Academy.Modules.Authentication
 {
-    internal class Authenticator
+    public static class TokenManager
     {
-        private static readonly HttpClient client = new HttpClient { BaseAddress = new Uri("http://127.0.0.1:5000/") };
+        // Static property to hold the JWT token
+        private static string _jwtToken;
 
-        // Method to hash password using SHA256
-        private string HashPassword(string password)
+        // Property to get and set the JWT token
+        public static string JWTToken
         {
-            using (SHA256 sha256Hash = SHA256.Create())
+            get { return _jwtToken; }
+            set
             {
-                // Compute hash of the password
-                byte[] bytes = sha256Hash.ComputeHash(Encoding.UTF8.GetBytes(password));
-
-                // Convert byte array to hexadecimal string
-                StringBuilder builder = new StringBuilder();
-                foreach (byte b in bytes)
+                if (!string.IsNullOrEmpty(value))
                 {
-                    builder.Append(b.ToString("x2"));
+                    _jwtToken = value;
                 }
-                return builder.ToString();
             }
         }
+
+        // Method to update the JWT token
+        public static void UpdateToken(string newToken)
+        {
+            if (!string.IsNullOrEmpty(newToken))
+            {
+                _jwtToken = newToken;
+            }
+        }
+
+
+        // Method to check if the token is available
+        public static bool IsTokenAvailable()
+        {
+            return !string.IsNullOrEmpty(_jwtToken);
+        }
+    }
+
+    internal class Authenticator
+    {
+        private static readonly string ApiBaseUrl = ConfigurationManager.ConnectionStrings["ApiBaseUrl"].ConnectionString;
+        private static readonly HttpClient client = new HttpClient { BaseAddress = new Uri(ApiBaseUrl) };
+
+        // Method to hash password using SHA256
+      
 
         // Method to handle signup
         public bool SignUp(string firstName, string lastName, string email, string username, string password, out string errorMessage)
@@ -44,7 +67,7 @@ namespace Prabesh_Academy.Modules.Authentication
                     last_name = lastName,
                     email = email,
                     username = username,
-                    password = HashPassword(password)  // Send hashed password
+                    password = password // Send hashed password
                 };
 
                 var json = JsonConvert.SerializeObject(requestData);
@@ -77,16 +100,16 @@ namespace Prabesh_Academy.Modules.Authentication
         public bool Login(string usernameOrEmail, string password, out string errorMessage)
         {
             errorMessage = string.Empty;
-
             try
             {
                 // Create request data
                 var requestData = new
                 {
                     username_or_email = usernameOrEmail,
-                    password = HashPassword(password)  // Send hashed password
+                    password = password
                 };
 
+                // Serialize request data to JSON
                 var json = JsonConvert.SerializeObject(requestData);
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -95,7 +118,16 @@ namespace Prabesh_Academy.Modules.Authentication
 
                 if (response.IsSuccessStatusCode)
                 {
-                    // MessageBox.Show("Login successful!");
+                    // Parse response content to extract the token
+                    var responseContent = response.Content.ReadAsStringAsync().Result;
+                    dynamic responseData = JsonConvert.DeserializeObject<dynamic>(responseContent);
+
+                    // Assign the token to JWTtoken
+                    var token = responseData.token.ToString(); // Ensure it's a string
+                    TokenManager.UpdateToken(token);
+
+
+                    // Indicate success
                     return true;
                 }
                 else

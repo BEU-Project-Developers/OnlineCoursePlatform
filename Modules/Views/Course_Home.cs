@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Drawing;
 using System.Linq;
 using System.Net.Http;
@@ -7,6 +8,8 @@ using System.Net.Http.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Prabesh_Academy.Modules.Authentication;
 
 namespace Prabesh_Academy.Modules.Views
 {
@@ -14,7 +17,8 @@ namespace Prabesh_Academy.Modules.Views
     {
         private Main mainFormInstance;
         private Stack<NavigationState> _navigationStack = new Stack<NavigationState>();
-        private const string ApiBaseUrl = "http://127.0.0.1:5000"; // Replace with your actual API base URL
+        private string ApiBaseUrl = ConfigurationManager.ConnectionStrings["ApiBaseUrl"].ConnectionString;
+        string JWTtoken = TokenManager.JWTToken;
 
         public Course_Home(Main mainFormArg)
         {
@@ -48,6 +52,8 @@ namespace Prabesh_Academy.Modules.Views
             {
                 using (HttpClient client = new HttpClient())
                 {
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", JWTtoken);
+
                     HttpResponseMessage response = await client.GetAsync($"{ApiBaseUrl}/allAvailableCourses");
                     response.EnsureSuccessStatusCode();
                     string jsonResponse = await response.Content.ReadAsStringAsync();
@@ -81,6 +87,8 @@ namespace Prabesh_Academy.Modules.Views
             {
                 using (HttpClient client = new HttpClient())
                 {
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", JWTtoken);
+
                     HttpResponseMessage response = await client.GetAsync($"{ApiBaseUrl}/allAvailableCourses?level_id={levelId}");
                     response.EnsureSuccessStatusCode();
                     string jsonResponse = await response.Content.ReadAsStringAsync();
@@ -112,6 +120,8 @@ namespace Prabesh_Academy.Modules.Views
             {
                 using (HttpClient client = new HttpClient())
                 {
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", JWTtoken);
+
                     HttpResponseMessage response = await client.GetAsync($"{ApiBaseUrl}/allAvailableCourses?level_id={_navigationStack.Peek().LevelId}&group_id={groupId}");
                     response.EnsureSuccessStatusCode();
                     string jsonResponse = await response.Content.ReadAsStringAsync();
@@ -141,6 +151,8 @@ namespace Prabesh_Academy.Modules.Views
             {
                 using (HttpClient client = new HttpClient())
                 {
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", JWTtoken);
+
                     HttpResponseMessage response = await client.GetAsync($"{ApiBaseUrl}/allAvailableCourses?level_id={_navigationStack.Peek().LevelId}&group_id={_navigationStack.Peek().GroupId}&course_id={courseId}");
                     response.EnsureSuccessStatusCode();
                     string jsonResponse = await response.Content.ReadAsStringAsync();
@@ -195,6 +207,8 @@ namespace Prabesh_Academy.Modules.Views
             {
                 using (HttpClient client = new HttpClient())
                 {
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", JWTtoken);
+
                     HttpResponseMessage response = await client.GetAsync($"{ApiBaseUrl}/allAvailableCourses?level_id={_navigationStack.Peek().LevelId}&group_id={_navigationStack.Peek().GroupId}&course_id={_navigationStack.Peek().CourseId}&subject_id={subjectId}");
                     response.EnsureSuccessStatusCode();
                     string jsonResponse = await response.Content.ReadAsStringAsync();
@@ -227,6 +241,8 @@ namespace Prabesh_Academy.Modules.Views
             {
                 using (HttpClient client = new HttpClient())
                 {
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", JWTtoken);
+
                     string url = $"{ApiBaseUrl}/allAvailableCourses?level_id={_navigationStack.Peek().LevelId}&group_id={_navigationStack.Peek().GroupId}&course_id={_navigationStack.Peek().CourseId}&subject_id={subjectId}";
                     if (parentId.HasValue)
                     {

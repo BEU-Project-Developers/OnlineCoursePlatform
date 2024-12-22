@@ -1,9 +1,14 @@
-from flask import Flask, request, jsonify
 import pyodbc
+import jwt
+import datetime
+
+from flask import Flask, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
-from collections import defaultdict
+from functools import wraps
+
 
 app = Flask(__name__)
+app.config["SHHHH_CHUP"] = "prabe.sh"  # Replace with a strong secret key
 
 # Database connection strings
 DATABASE_CONFIG = {
@@ -34,6 +39,27 @@ def get_db_connection(database_config):
         print(f"Database connection error: {e}")
         raise
 
+# Authentication decorator
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = None
+
+        if "Authorization" in request.headers:
+            token = request.headers["Authorization"].split(" ")[1]
+
+        if not token:
+            return jsonify({"error": "Token is missing!"}), 401
+
+        try:
+            jwt.decode(token, app.config["SHHHH_CHUP"], algorithms=["HS256"])
+        except:
+            return jsonify({"error": "Token is invalid!"}), 401
+
+        return f(*args, **kwargs)
+
+    return decorated
+
 
 # Login endpoint
 @app.route("/login", methods=["POST"])
@@ -49,17 +75,27 @@ def login():
 
         # Query to retrieve the stored password hash
         query = """
-        SELECT PasswordHash FROM Users
+        SELECT UserId, PasswordHash FROM Users
         WHERE Username = ? OR Email = ?
         """
         cursor.execute(query, (username_or_email, username_or_email))
         result = cursor.fetchone()
 
         if result:
-            stored_password_hash = result[0]
+            user_id, stored_password_hash = result
             # Compare the entered password with the stored hash
             if check_password_hash(stored_password_hash, password):
-                return jsonify({"message": "Login successful"}), 200
+                # Generate JWT
+                token = jwt.encode(
+                    {
+                        "user_id": user_id,
+                        "exp": datetime.datetime.utcnow()
+                        + datetime.timedelta(minutes=30),
+                    },
+                    app.config["SHHHH_CHUP"],
+                    algorithm="HS256",
+                )
+                return jsonify({"message": "Login successful", "token": token}), 200
             else:
                 return jsonify({"error": "Invalid username/email or password"}), 401
         else:
@@ -68,7 +104,6 @@ def login():
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
     finally:
         conn.close()
-
 
 # Signup endpoint
 @app.route("/signup", methods=["POST"])
@@ -117,6 +152,7 @@ def signup():
 
 
 @app.route("/allAvailableCourses", methods=["GET"])
+@token_required
 def get_all_available_courses():
     level_id = request.args.get("level_id", type=int)
     group_id = request.args.get("group_id", type=int)
@@ -271,6 +307,7 @@ def get_all_available_courses():
 
 
 @app.route("/lectures/<int:content_id>", methods=["GET"])
+@token_required
 def get_lectures_for_content(content_id):
     try:
         conn = get_db_connection(COURSES_DATABASE_CONFIG)
@@ -298,6 +335,37 @@ def get_lectures_for_content(content_id):
     finally:
         if "conn" in locals() and conn:
             conn.close()
+
+# Dynamic route for fetching all courses
+@app.route("/dynamicHome", methods=["GET"])
+def dynamic_home():
+    # Establish database connection
+    conn = get_db_connection(COURSES_DATABASE_CONFIG)
+
+    # Query the database for all the courses
+    course = conn.execute("SELECT * FROM HomepageTrailers").fetchall()
+
+    # print(course)
+    # Close the connection
+    conn.close()
+
+    # If no courses found
+    if not course:
+        return jsonify({"error": "No courses found"}), 404
+
+    # Prepare data for the response
+    courses_data = [
+        {
+            "Id": course[0],
+            "Title": course[1],
+            "Duration": course[2],
+            "Image": course[3],
+        }
+        for course in course
+    ]
+
+    # Return the courses as a JSON response
+    return jsonify(courses_data)
 
 
 if __name__ == "__main__":

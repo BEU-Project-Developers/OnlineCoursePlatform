@@ -1,18 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Configuration;
 using System.Drawing;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using Newtonsoft.Json;
+using Prabesh_Academy.Modules.Authentication;
 
 namespace Prabesh_Academy.Modules.Views
 {
     public partial class LectureView : UserControl
     {
         private int contentId;
-        private const string ApiBaseUrl = "http://127.0.0.1:5000"; // Replace with your API base URL
+        private string ApiBaseUrl = ConfigurationManager.ConnectionStrings["ApiBaseUrl"].ConnectionString;
+        string JWTtoken = TokenManager.JWTToken;
 
         public LectureView(Main mainFormInstance, int contentId)
         {
@@ -30,6 +33,7 @@ namespace Prabesh_Academy.Modules.Views
             {
                 using (HttpClient client = new HttpClient())
                 {
+                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", JWTtoken);
                     HttpResponseMessage response = await client.GetAsync($"{ApiBaseUrl}/lectures/{contentId}");
                     response.EnsureSuccessStatusCode();
                     string jsonResponse = await response.Content.ReadAsStringAsync();
