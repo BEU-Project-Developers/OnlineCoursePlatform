@@ -1,4 +1,8 @@
-﻿using System.Drawing.Drawing2D;
+﻿using System.Configuration;
+using System.Drawing.Drawing2D;
+using System.Net;
+using System.Text.Json;
+using Microsoft.VisualBasic.Devices;
 using Prabesh_Academy.Modules.Forms; // Add this line
 
 
@@ -10,6 +14,8 @@ namespace Prabesh_Academy.Modules.Views
         private Panel mainPanel;
         private Color CommonBackColor = Color.White;
         private Color CardThemeColor = Color.WhiteSmoke;
+        private string ApiBaseUrl = ConfigurationManager.ConnectionStrings["ApiBaseUrl"].ConnectionString;
+
 
         public home_page()
         {
@@ -98,6 +104,14 @@ namespace Prabesh_Academy.Modules.Views
             };
         }
 
+        public class Course
+        {
+            public int Id { get; set; }
+            public string Title { get; set; }
+            public string Duration { get; set; }
+            public string Image { get; set; }
+        }
+
         private void AddCoursesCardToMainPanel()
         {
             int courseCardWidth = 430;
@@ -105,43 +119,60 @@ namespace Prabesh_Academy.Modules.Views
             int margin = 20;
             mainPanel.Controls.Clear();
 
-            var courses = new[]
+            try
             {
-    new { Title = "Physics : Chapter 18 - Rotational Dynamics | Mechanics", Duration = "3 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\demo_thumb.png" },
-    new { Title = "Computer : Data Structure and Algorithms | Interview Preparation ", Duration = "7 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\maybe_logo.jpeg" },
-    new { Title = "Economics: Microeconomics - Supply and Demand", Duration = "45:45", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\squared_intro.jpeg" },
-    new { Title = "Psychology: Theories of Personality", Duration = "05:00", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\students_raising_hand.jpeg" },
-    new { Title = "Chemistry : Chapter 4 - Ideal Gas Equation | Gas Laws 2", Duration = "5 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\maybe_logo.jpeg" },
-    new { Title = "Networking: Fundamentals of Internet Protocols", Duration = "3.5 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\students_raising_hand.jpeg" },
-    new { Title = "Quantum Physics: Principles and Applications", Duration = "16:48", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\demo_thumb.png" },
-    new { Title = "Ethics: Introduction to Moral Philosophy", Duration = "7 hours", Image = @"C:\Users\prabe\Documents\Class\3rd Year\Modern Programmin Language - 1\Project\Prabesh Academy\Assets\images\ai_generated\squared_intro.jpeg" },
-
-};
-
-
-            int coursesPerRow = Math.Max(1, (mainPanel.ClientSize.Width - margin) / (courseCardWidth + margin));
-            int yPosition = margin;
-
-            for (int i = 0; i < courses.Length; i++)
-            {
-                int row = i / coursesPerRow;
-                int col = i % coursesPerRow;
-
-                int xPosition = margin + col * (courseCardWidth + margin);
-                int totalRowWidth = coursesPerRow * courseCardWidth + (coursesPerRow - 1) * margin;
-                int xOffset = Math.Max(0, (mainPanel.ClientSize.Width - totalRowWidth) / 2);
-                xPosition += xOffset;
-
-                Panel courseCard = new Panel
+                // Initialize HttpClient to call the backend API
+                using (HttpClient httpClient = new HttpClient { BaseAddress = new Uri(ApiBaseUrl) })
                 {
-                    Size = new Size(courseCardWidth, courseCardHeight),
-                    Location = new Point(xPosition, yPosition + row * (courseCardHeight + margin)),
-                    BackColor = CommonBackColor,
-                    BorderStyle = BorderStyle.None
-                };
+                    // Synchronously fetch courses from the API
+                    HttpResponseMessage response = httpClient.GetAsync("dynamicHome").Result;
+                    if (response.IsSuccessStatusCode)
+                    {
+                        string responseData = response.Content.ReadAsStringAsync().Result;
+                        var courses = JsonSerializer.Deserialize<Course[]>(responseData);
 
-                AddSimpleCourseContent(courseCard, courses[i]);
-                mainPanel.Controls.Add(courseCard);
+                        if (courses != null)
+                        {
+                            int coursesPerRow = Math.Max(1, (mainPanel.ClientSize.Width - margin) / (courseCardWidth + margin));
+                            int yPosition = margin;
+
+                            for (int i = 0; i < courses.Length; i++)
+                            {
+                                int row = i / coursesPerRow;
+                                int col = i % coursesPerRow;
+
+                                int xPosition = margin + col * (courseCardWidth + margin);
+                                int totalRowWidth = coursesPerRow * courseCardWidth + (coursesPerRow - 1) * margin;
+                                int xOffset = Math.Max(0, (mainPanel.ClientSize.Width - totalRowWidth) / 2);
+                                xPosition += xOffset;
+
+                                Panel courseCard = new Panel
+                                {
+                                    Size = new Size(courseCardWidth, courseCardHeight),
+                                    Location = new Point(xPosition, yPosition + row * (courseCardHeight + margin)),
+                                    BackColor = CommonBackColor,
+                                    BorderStyle = BorderStyle.None
+                                };
+
+                                // Add course content dynamically
+                                AddSimpleCourseContent(courseCard, courses[i]);
+                                mainPanel.Controls.Add(courseCard);
+                            }
+                        }
+                        else
+                        {
+                            MessageBox.Show("No courses found.");
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("Failed to load courses: " + response.Content.ReadAsStringAsync().Result);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Error: " + ex.Message);
             }
         }
 
@@ -205,15 +236,51 @@ namespace Prabesh_Academy.Modules.Views
             //};
 
 
-            if (File.Exists(course.Image))
+            if (!string.IsNullOrEmpty(course.Image))
             {
                 Panel thumbnailPanel = new Panel
                 {
                     Dock = DockStyle.Fill,
                     BackColor = CardThemeColor,
-                    BackgroundImage = course.Image != null ? Image.FromFile(course.Image) : null,
                     BackgroundImageLayout = ImageLayout.Stretch // Maintains aspect ratio
                 };
+                try
+                {
+                    if (Uri.IsWellFormedUriString(course.Image, UriKind.Absolute)) // Check if it's a valid URL
+                    {
+                        //MessageBox.Show("Attempting to load the image from URL...");
+                        using (var webClient = new WebClient())
+                        {
+                            // Optionally handle SSL issues
+                            ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12; // Ensure modern TLS support
+                            byte[] imageBytes = webClient.DownloadData(course.Image);
+                            using (var ms = new MemoryStream(imageBytes))
+                            {
+                                thumbnailPanel.BackgroundImage = Image.FromStream(ms);
+                            }
+                        }
+                    }
+                    else if (File.Exists(course.Image)) // Check if it's a valid local file
+                    {
+                        //MessageBox.Show("Loading the image from a local file...");
+                        thumbnailPanel.BackgroundImage = Image.FromFile(course.Image);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Image not found at: " + course.Image);
+                        MessageBox.Show("Image path invalid or file not found: " + course.Image);
+                    }
+                }
+                catch (WebException ex)
+                {
+                    MessageBox.Show("Failed to load image from URL. Details: " + ex.Message);
+                    Console.WriteLine("WebException: " + ex.Message);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show("An error occurred while loading the image. Details: " + ex.Message);
+                    Console.WriteLine("Exception: " + ex.Message);
+                }
 
                 // Duration label to overlay on the thumbnail
                 Label durationLabel = new Label

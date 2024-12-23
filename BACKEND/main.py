@@ -343,7 +343,9 @@ def dynamic_home():
     conn = get_db_connection(COURSES_DATABASE_CONFIG)
 
     # Query the database for all the courses
-    course = conn.execute("SELECT * FROM HomepageTrailers").fetchall()
+    course = conn.execute(
+        "SELECT TOP 8 * FROM HomepageTrailers ORDER BY NEWID()"
+    ).fetchall()
 
     # print(course)
     # Close the connection
