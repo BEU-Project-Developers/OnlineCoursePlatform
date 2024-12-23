@@ -193,7 +193,7 @@ def get_all_available_courses():
             cursor.execute(query, level_id)
             groups = cursor.fetchall()
             data = [
-                {"type": "group", "id": group[0], "name": group[1]} for group in groups
+                {"type": "group", "id": group[0], "name": group[1], "graphic":""} for group in groups
             ]
             return jsonify(data), 200
 
