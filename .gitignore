@@ -80,7 +80,7 @@ Migrations/
 
 # If you have local images or assets
 Assets/
-*.png
+# *.png
 *.jpg
 *.jpeg
 *.gif
