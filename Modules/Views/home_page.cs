@@ -268,17 +268,17 @@ namespace Prabesh_Academy.Modules.Views
                     else
                     {
                         Console.WriteLine("Image not found at: " + course.Image);
-                        MessageBox.Show("Image path invalid or file not found: " + course.Image);
+                        //MessageBox.Show("Image path invalid or file not found: " + course.Image);
                     }
                 }
                 catch (WebException ex)
                 {
-                    MessageBox.Show("Failed to load image from URL. Details: " + ex.Message);
+                    //MessageBox.Show("Failed to load image from URL. Details: " + ex.Message);
                     Console.WriteLine("WebException: " + ex.Message);
                 }
                 catch (Exception ex)
                 {
-                    MessageBox.Show("An error occurred while loading the image. Details: " + ex.Message);
+                    //MessageBox.Show("An error occurred while loading the image. Details: " + ex.Message);
                     Console.WriteLine("Exception: " + ex.Message);
                 }
 
