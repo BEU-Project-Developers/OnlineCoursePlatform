@@ -1,13 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Configuration;
 using System.Drawing;
-using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Xml;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Prabesh_Academy.Modules.Authentication;
@@ -27,6 +26,7 @@ namespace Prabesh_Academy.Modules.Views
             mainFormInstance = mainFormArg;
             InitializeComponent();
             LoadBackButtonImage();
+
             this.Dock = DockStyle.Fill;
             if (mainFormInstance != null)
             {
@@ -34,7 +34,7 @@ namespace Prabesh_Academy.Modules.Views
                 mainFormInstance.Controls.Add(this);
             }
             LoadData();
-            this.back_button.Click += BackButton_Click;
+
         }
         private void LoadBackButtonImage()
         {
@@ -60,14 +60,12 @@ namespace Prabesh_Academy.Modules.Views
         {
             _navigationStack.Clear();
             _navigationStack.Push(new NavigationState { LevelId = null, GroupId = null, CourseId = null, SubjectId = null, ParentId = null });
-            flowLayoutPanel1.Controls.Clear();
             await LoadDataFromApi();
         }
 
         private async Task LoadGroupsForLevel(int levelId)
         {
             _navigationStack.Push(new NavigationState { LevelId = levelId, GroupId = null, CourseId = null, SubjectId = null, ParentId = null });
-            flowLayoutPanel1.Controls.Clear();
             await LoadDataFromApi(levelId: levelId);
         }
 
@@ -75,33 +73,32 @@ namespace Prabesh_Academy.Modules.Views
         {
             int? levelId = _navigationStack.Peek().LevelId;
             _navigationStack.Push(new NavigationState { LevelId = levelId, GroupId = groupId, CourseId = null, SubjectId = null, ParentId = null });
-            flowLayoutPanel1.Controls.Clear();
             await LoadDataFromApi(levelId: levelId, groupId: groupId);
         }
+
         private async Task ShowCourseDetails(int courseId)
         {
             int? levelId = _navigationStack.Peek().LevelId;
             int? groupId = _navigationStack.Peek().GroupId;
             _navigationStack.Push(new NavigationState { LevelId = levelId, GroupId = groupId, CourseId = courseId, SubjectId = null, ParentId = null });
-            flowLayoutPanel1.Controls.Clear();
             await LoadDataFromApi(levelId: levelId, groupId: groupId, courseId: courseId);
         }
+
         private async Task ShowSubjectDetails(int subjectId)
         {
             int? levelId = _navigationStack.Peek().LevelId;
             int? groupId = _navigationStack.Peek().GroupId;
             int? courseId = _navigationStack.Peek().CourseId;
             _navigationStack.Push(new NavigationState { LevelId = levelId, GroupId = groupId, CourseId = courseId, SubjectId = subjectId, ParentId = null });
-            flowLayoutPanel1.Controls.Clear();
             await LoadDataFromApi(levelId: levelId, groupId: groupId, courseId: courseId, subjectId: subjectId);
         }
+
         private async Task LoadContentChildren(int subjectId, int? parentId)
         {
             int? levelId = _navigationStack.Peek().LevelId;
             int? groupId = _navigationStack.Peek().GroupId;
             int? courseId = _navigationStack.Peek().CourseId;
             _navigationStack.Push(new NavigationState { LevelId = levelId, GroupId = groupId, CourseId = courseId, SubjectId = subjectId, ParentId = parentId });
-            flowLayoutPanel1.Controls.Clear();
             await LoadDataFromApi(levelId: levelId, groupId: groupId, courseId: courseId, subjectId: subjectId, parentId: parentId);
         }
 
@@ -113,70 +110,48 @@ namespace Prabesh_Academy.Modules.Views
                 using (HttpClient client = new HttpClient())
                 {
                     client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", JWTtoken);
+
                     string url = $"{ApiBaseUrl}/allAvailableCourses?";
                     if (levelId.HasValue) url += $"level_id={levelId}&";
                     if (groupId.HasValue) url += $"group_id={groupId}&";
                     if (courseId.HasValue) url += $"course_id={courseId}&";
                     if (subjectId.HasValue) url += $"subject_id={subjectId}&";
                     if (parentId.HasValue) url += $"parent_id={parentId}&";
+
                     if (url.EndsWith("&"))
                     {
                         url = url.TrimEnd('&');
                     }
+
                     HttpResponseMessage response = await client.GetAsync(url);
                     response.EnsureSuccessStatusCode();
                     string jsonResponse = await response.Content.ReadAsStringAsync();
                     dynamic result = JsonConvert.DeserializeObject<dynamic>(jsonResponse);
-                    if (result is JObject && result.ContainsKey("type") && result.type.ToString() == "subject_id")
+
+                    if (result is JArray jArrayResult)
                     {
-                        _navigationStack.Push(new NavigationState { LevelId = levelId, GroupId = groupId, CourseId = courseId, SubjectId = (int)result.data, ParentId = null });
-                        if (result.ContainsKey("contents"))
+                        // Handle lists of items (levels, groups, courses, subjects)
+                        foreach (var item in jArrayResult)
                         {
-                            DisplayContentHierarchy(JsonConvert.DeserializeObject<List<dynamic>>(result.contents.ToString()));
-                        }
-                        else
-                        {
-                            await ShowSubjectDetails((int)result.data);
+                            string type = item["type"]?.ToString().ToLower() ?? (subjectId.HasValue ? "content" : "");
+                            string description = item["description"]?.ToString();
+                            AddCard((int)item["id"], (string)item["name"], (string)item["svg"], (int)item["progress"], type, description);
                         }
                     }
-                    else if (result is JArray jArrayResult)
+                    else if (result is JObject jObjectResult)
                     {
-                        if (!levelId.HasValue)
+                        if (subjectId.HasValue && jObjectResult.ContainsKey("contents"))
                         {
-                            foreach (var level in jArrayResult)
-                            {
-                                AddCard((int)level["id"], (string)level["name"], (string)level["svg"], (int)level["progress"], "level");
-                            }
+                            DisplayContentHierarchy(JsonConvert.DeserializeObject<List<dynamic>>(jObjectResult["contents"].ToString()));
                         }
-                        else if (levelId.HasValue && !groupId.HasValue)
+                        else if (jObjectResult.ContainsKey("type") && jObjectResult["type"] != null && jObjectResult["type"].ToString() == "subject_id")
                         {
-                            foreach (var group in jArrayResult)
-                            {
-                                AddCard((int)group["id"], (string)group["name"], (string)group["svg"], (int)group["progress"], "group");
-                            }
+                            await ShowSubjectDetails((int)jObjectResult["data"]);
                         }
-                        else if (levelId.HasValue && groupId.HasValue && !courseId.HasValue)
+                        else if (jObjectResult.ContainsKey("contents")) // Check for direct content
                         {
-                            foreach (var course in jArrayResult)
-                            {
-                                AddCard((int)course["id"], (string)course["name"], (string)course["svg"], (int)course["progress"], "course", (string)course["description"]);
-                            }
+                            DisplayContentHierarchy(JsonConvert.DeserializeObject<List<dynamic>>(jObjectResult["contents"].ToString()));
                         }
-                        else if (levelId.HasValue && groupId.HasValue && courseId.HasValue && !subjectId.HasValue)
-                        {
-                            foreach (var subject in jArrayResult)
-                            {
-                                AddCard((int)subject["id"], (string)subject["name"], (string)subject["svg"], (int)subject["progress"], "subject", (string)subject["description"]);
-                            }
-                        }
-                        else if (levelId.HasValue && groupId.HasValue && courseId.HasValue && subjectId.HasValue)
-                        {
-                            DisplayContentHierarchy(JsonConvert.DeserializeObject<List<dynamic>>(jsonResponse));
-                        }
-                    }
-                    else if (result is JObject && result.ContainsKey("contents") && subjectId.HasValue)
-                    {
-                        DisplayContentHierarchy(JsonConvert.DeserializeObject<List<dynamic>>(result.contents.ToString()));
                     }
                 }
             }
@@ -196,10 +171,12 @@ namespace Prabesh_Academy.Modules.Views
             {
                 DisplayContentCard(content);
             }
+
         }
 
         private void DisplayContentCard(dynamic content)
         {
+            // Create the main card panel
             Panel contentCard = new Panel
             {
                 Size = new Size((flowLayoutPanel1.ClientSize.Width - 90) / 3, 120),
@@ -208,30 +185,33 @@ namespace Prabesh_Academy.Modules.Views
                 Tag = content.content_id,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
-            contentCard.Cursor = Cursors.Hand;
+            contentCard.Cursor = Cursors.Hand; // Set cursor for the entire card
 
+            // SVG display area
             PictureBox svgPictureBox = new PictureBox
             {
-                Size = new Size(contentCard.Width / 4, contentCard.Height - 20),
+                Size = new Size(contentCard.Width / 4, contentCard.Height - 20), // SVG takes 25% width
                 Location = new Point(10, 10),
                 BackColor = Color.White,
                 SizeMode = PictureBoxSizeMode.Zoom
             };
 
+            // Render the SVG data
             try
             {
-                using (var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes((string)content.svg)))
+                using (var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes((string)content.svg)))
                 {
                     svgPictureBox.Image = SvgDocument.Open<SvgDocument>(stream).Draw();
                 }
             }
             catch
             {
-                svgPictureBox.BackColor = Color.Red;
+                svgPictureBox.BackColor = Color.Red; // Error background if SVG fails
             }
 
             contentCard.Controls.Add(svgPictureBox);
 
+            // Text display and progress panel
             Panel textPanel = new Panel
             {
                 Location = new Point(svgPictureBox.Width + 20, 10),
@@ -239,18 +219,20 @@ namespace Prabesh_Academy.Modules.Views
                 BackColor = Color.Transparent
             };
 
+            // Title label
             Label contentLabel = new Label
             {
                 Text = (string)content.content_name,
                 TextAlign = ContentAlignment.TopLeft,
                 Font = new Font("Arial", 10, FontStyle.Bold),
                 AutoSize = false,
-                MaximumSize = new Size(textPanel.Width, 40),
+                MaximumSize = new Size(textPanel.Width, 40), // Wrap text if needed
                 Size = new Size(textPanel.Width, 40),
                 Location = new Point(0, 0)
             };
             textPanel.Controls.Add(contentLabel);
 
+            // Progress bar
             ProgressBar progressBar = new ProgressBar
             {
                 Value = (int)content.progress,
@@ -263,6 +245,7 @@ namespace Prabesh_Academy.Modules.Views
 
             contentCard.Controls.Add(textPanel);
 
+            // Click event handler
             contentCard.Click += async (sender, e) =>
             {
                 int? contentId = null;
@@ -270,14 +253,17 @@ namespace Prabesh_Academy.Modules.Views
                 {
                     contentId = (int)content.content_id;
                 }
+
                 if (content.ContainsKey("containsChildren") && content.containsChildren == true)
                 {
+                    // Load children of the current content
                     await LoadContentChildren(_navigationStack.Peek().SubjectId.Value, contentId);
                 }
                 else
                 {
                     if (contentId.HasValue)
                     {
+                        // Navigate to LectureView
                         LectureView lectureView = new LectureView(mainFormInstance, contentId.Value) { Dock = DockStyle.Fill };
                         mainFormInstance.Controls.Clear();
                         mainFormInstance.Controls.Add(lectureView);
@@ -288,15 +274,18 @@ namespace Prabesh_Academy.Modules.Views
                     }
                 }
             };
+
             contentCard.MouseHover += ContentCard_MouseHover;
             contentCard.MouseLeave += ContentCard_MouseLeave;
+
+            // Add the card to the flow layout panel
             flowLayoutPanel1.Controls.Add(contentCard);
         }
         private void ContentCard_MouseHover(object? sender, EventArgs e)
         {
             if (sender is Panel contentCard)
             {
-                contentCard.BackColor = Color.DarkGray;
+                contentCard.BackColor = Color.DarkGray; // Example hover effect
             }
         }
 
@@ -304,12 +293,13 @@ namespace Prabesh_Academy.Modules.Views
         {
             if (sender is Panel contentCard)
             {
-                contentCard.BackColor = Color.LightGray;
+                contentCard.BackColor = Color.LightGray; // Reset background color
             }
         }
 
         private void AddCard(int id, string name, string svgData, int progressPercent, string type, string description = null)
         {
+            // Card panel setup
             Panel card = new Panel
             {
                 Size = new Size((flowLayoutPanel1.ClientSize.Width - 90) / 3, 120),
@@ -318,30 +308,33 @@ namespace Prabesh_Academy.Modules.Views
                 Tag = id,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
-            card.Cursor = Cursors.Hand;
+            card.Cursor = Cursors.Hand; // Set cursor for the entire card
 
+            // SVG display area
             PictureBox svgPictureBox = new PictureBox
             {
-                Size = new Size(card.Width / 4, card.Height - 20),
+                Size = new Size(card.Width / 4, card.Height - 20), // SVG takes up 25% of the card width
                 Location = new Point(10, 10),
                 BackColor = Color.White,
-                SizeMode = PictureBoxSizeMode.Zoom
+                SizeMode = PictureBoxSizeMode.Zoom // Ensures the SVG fits nicely
             };
 
+            // Render SVG data
             try
             {
-                using (var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(svgData)))
+                using (var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(svgData)))
                 {
                     svgPictureBox.Image = SvgDocument.Open<SvgDocument>(stream).Draw();
                 }
             }
             catch
             {
-                svgPictureBox.BackColor = Color.Red;
+                svgPictureBox.BackColor = Color.Red; // Show an error background if SVG fails
             }
 
             card.Controls.Add(svgPictureBox);
 
+            // Text display area (title and progress)
             Panel textPanel = new Panel
             {
                 Location = new Point(svgPictureBox.Width + 20, 10),
@@ -349,19 +342,22 @@ namespace Prabesh_Academy.Modules.Views
                 BackColor = Color.Transparent
             };
 
+            // Title label
             Label lblName = new Label
             {
                 Text = $"{type.ToUpper()}: {name}",
                 Font = new Font("Arial", 10, FontStyle.Bold),
                 AutoSize = false,
-                MaximumSize = new Size(textPanel.Width, 0),
+                MaximumSize = new Size(textPanel.Width, 0), // Wrap text
                 Size = new Size(textPanel.Width, 40),
                 Location = new Point(0, 0)
             };
+
             textPanel.Controls.Add(lblName);
 
             Point where_is_progress = new Point(0, lblName.Bottom + 10);
 
+            // Optional description
             if (!string.IsNullOrWhiteSpace(description))
             {
                 Label lblDescription = new Label
@@ -377,6 +373,9 @@ namespace Prabesh_Academy.Modules.Views
                 where_is_progress = new Point(0, lblDescription.Bottom + 10);
             }
 
+
+
+            // Progress bar
             ProgressBar progressBar = new ProgressBar
             {
                 Value = progressPercent,
@@ -385,12 +384,15 @@ namespace Prabesh_Academy.Modules.Views
                 Size = new Size(textPanel.Width, 20),
                 Location = where_is_progress
             };
+
             textPanel.Controls.Add(progressBar);
+
             card.Controls.Add(textPanel);
 
+            // Click event handler for the card
             card.Click += async (sender, e) =>
             {
-                switch (type)
+                switch (type.ToLower())
                 {
                     case "level":
                         await LoadGroupsForLevel(id);
@@ -404,10 +406,16 @@ namespace Prabesh_Academy.Modules.Views
                     case "subject":
                         await ShowSubjectDetails(id);
                         break;
+                    case "content":
+                        await LoadContentChildren(_navigationStack.Peek().SubjectId.Value, id);
+                        break;
                 }
             };
+
             card.MouseHover += ContentCard_MouseHover;
             card.MouseLeave += ContentCard_MouseLeave;
+
+            // Add card to the flow layout panel
             flowLayoutPanel1.Controls.Add(card);
         }
 
@@ -415,37 +423,23 @@ namespace Prabesh_Academy.Modules.Views
         {
             if (_navigationStack.Count > 1)
             {
-                _navigationStack.Pop();
+                _navigationStack.Pop(); // Remove the current state
                 var previousState = _navigationStack.Peek();
-                if (previousState.SubjectId.HasValue)
-                {
-                    if (previousState.ParentId.HasValue)
-                    {
-                        await LoadContentChildren(previousState.SubjectId.Value, previousState.ParentId);
-                    }
-                    else
-                    {
-                        await ShowSubjectDetails(previousState.SubjectId.Value);
-                    }
-                }
-                else if (previousState.CourseId.HasValue)
-                {
-                    await ShowCourseDetails(previousState.CourseId.Value);
-                }
-                else if (previousState.GroupId.HasValue)
-                {
-                    await LoadCoursesForGroup(previousState.GroupId.Value);
-                }
-                else if (previousState.LevelId.HasValue)
-                {
-                    await LoadGroupsForLevel(previousState.LevelId.Value);
-                }
-                else
-                {
-                    await LoadEducationalLevels();
-                }
+                await LoadDataFromNavigationState(previousState);
             }
         }
+
+        private async Task LoadDataFromNavigationState(NavigationState state)
+        {
+            await LoadDataFromApi(
+                levelId: state.LevelId,
+                groupId: state.GroupId,
+                courseId: state.CourseId,
+                subjectId: state.SubjectId,
+                parentId: state.ParentId
+            );
+        }
+
         private class NavigationState
         {
             public int? LevelId { get; set; }
