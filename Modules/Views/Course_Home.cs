@@ -62,7 +62,7 @@ namespace Prabesh_Academy.Modules.Views
 
                     foreach (var level in levels)
                     {
-                        AddCard((int)level.id, (string)level.name, "level");
+                        AddCard((int)level.id, (string)level.name, (string)level.svg, (int)level.progress, "level");
                     }
                 }
 
@@ -97,7 +97,7 @@ namespace Prabesh_Academy.Modules.Views
 
                     foreach (var group in groups)
                     {
-                        AddCard((int)group.id, (string)group.name, "group");
+                        AddCard((int)group.id, (string)group.name, (string)group.svg, (int)group.progress, "group");
                     }
                 }
             }
@@ -130,7 +130,7 @@ namespace Prabesh_Academy.Modules.Views
 
                     foreach (var course in courses)
                     {
-                        AddCard((int)course.id, (string)course.name, "course");
+                        AddCard((int)course.id, (string)course.name, (string)course.svg, (int)course.progress, "course");
                     }
                 }
 
@@ -183,7 +183,7 @@ namespace Prabesh_Academy.Modules.Views
                         {
                             foreach (var subject in subjects)
                             {
-                                AddCard((int)subject.id, (string)subject.name, (string)subject.type, (string)subject.description);
+                                AddCard((int)subject.id, (string)subject.name, (string)subject.svg, (int)subject.progress, (string)subject.type, (string)subject.description);
                             }
                         }
                     }
@@ -329,7 +329,7 @@ namespace Prabesh_Academy.Modules.Views
                 }
             };
         }
-        private void AddCard(int id, string name, string type, string description = null)
+        private void AddCard(int id, string name, string svgData, int progressPercent, string type, string description = null)
         {
             Panel card = new Panel
             {

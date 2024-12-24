@@ -133,7 +133,8 @@ namespace Prabesh_Academy.Modules.Authentication
                 else
                 {
                     errorMessage = response.Content.ReadAsStringAsync().Result;
-                    MessageBox.Show($"Error: {errorMessage}");
+                    dynamic errorMessageresponseData = JsonConvert.DeserializeObject<dynamic>(errorMessage);
+                    MessageBox.Show($"{errorMessageresponseData.error.ToString()}");
                     return false;
                 }
             }

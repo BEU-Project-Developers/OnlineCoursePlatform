@@ -1,6 +1,7 @@
 import pyodbc
 import jwt
 import datetime
+import random
 
 from flask import Flask, request, jsonify
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -172,12 +173,19 @@ def get_all_available_courses():
             and parent_id is None
         ):
             # Fetch Educational Levels
-            query = "SELECT level_id, level_name FROM EducationalLevels"
+            query = "SELECT level_id, level_name, graphic FROM EducationalLevels"
             cursor.execute(query)
             levels = cursor.fetchall()
 
             data = [
-                {"type": "level", "id": level[0], "name": level[1]} for level in levels
+                {
+                    "type": "level",
+                    "id": level[0],
+                    "name": level[1],
+                    "svg": level[2],  # Extracting 'Graphic' column
+                    "progress": random.randint(1, 100),  # Random progress value
+                }
+                for level in levels
             ]
             return jsonify(data), 200
 
@@ -189,11 +197,18 @@ def get_all_available_courses():
             and parent_id is None
         ):
             # Fetch Groups for a level
-            query = "SELECT group_id, map_description FROM EducationalLevel_CoursesMapping WHERE level_id = ?"
+            query = "SELECT group_id, map_description, graphic FROM EducationalLevel_CoursesMapping WHERE level_id = ?"
             cursor.execute(query, level_id)
             groups = cursor.fetchall()
             data = [
-                {"type": "group", "id": group[0], "name": group[1], "graphic":""} for group in groups
+                {
+                    "type": "group",
+                    "id": group[0],
+                    "name": group[1],
+                    "svg": group[2],  # Extracting 'Graphic' column
+                    "progress": random.randint(1, 100),  # Random progress value
+                }
+                for group in groups
             ]
             return jsonify(data), 200
 
@@ -206,7 +221,7 @@ def get_all_available_courses():
         ):
             # Fetch Courses for a group
             query = """
-                SELECT Courses.course_id, Courses.course_name 
+                SELECT Courses.course_id, Courses.course_name, Courses.graphic 
                 FROM Courses 
                 INNER JOIN CourseMapping ON Courses.course_id = CourseMapping.course_id 
                 WHERE CourseMapping.group_id = ?
@@ -214,7 +229,13 @@ def get_all_available_courses():
             cursor.execute(query, group_id)
             courses = cursor.fetchall()
             data = [
-                {"type": "course", "id": course[0], "name": course[1]}
+                {
+                    "type": "course",
+                    "id": course[0],
+                    "name": course[1],
+                    "svg": course[2],  # Extracting 'Graphic' column
+                    "progress": random.randint(1, 100),  # Random progress value
+                }
                 for course in courses
             ]
             return jsonify(data), 200
@@ -227,18 +248,17 @@ def get_all_available_courses():
             and parent_id is None
         ):
             # Fetch subjects or single subject id
-            # Check subject count
             query_check_subjects = (
                 "SELECT COUNT(*) FROM SubjectCourseMappings WHERE course_id = ?"
             )
             cursor.execute(query_check_subjects, course_id)
             subject_count = cursor.fetchone()[0]
             query_subjects = """
-                    SELECT Subjects.subject_id, Subjects.subject_name, Subjects.description
-                    FROM Subjects
-                    INNER JOIN SubjectCourseMappings ON Subjects.subject_id = SubjectCourseMappings.subject_id
-                    WHERE SubjectCourseMappings.course_id = ?
-                """
+                SELECT Subjects.subject_id, Subjects.subject_name, Subjects.description, Subjects.graphic
+                FROM Subjects
+                INNER JOIN SubjectCourseMappings ON Subjects.subject_id = SubjectCourseMappings.subject_id
+                WHERE SubjectCourseMappings.course_id = ?
+            """
             cursor.execute(query_subjects, course_id)
             subjects = cursor.fetchall()
             data = [
@@ -247,11 +267,14 @@ def get_all_available_courses():
                     "id": subject[0],
                     "name": subject[1],
                     "description": subject[2],
+                    "svg": subject[3],  # Extracting 'Graphic' column
+                    "progress": random.randint(1, 100),  # Random progress value
                 }
                 for subject in subjects
             ]
 
             return jsonify(data), 200
+
         elif (
             level_id is not None
             and group_id is not None
@@ -260,10 +283,10 @@ def get_all_available_courses():
         ):
             # Fetch Hierarchical Content for a subject
             query = """
-                    SELECT content_id, content_name, parent_id
-                    FROM HierarchicalContent
-                    WHERE subject_id = ?
-                """
+                SELECT content_id, content_name, parent_id, graphic
+                FROM HierarchicalContent
+                WHERE subject_id = ?
+            """
             cursor.execute(query, subject_id)
             contents = cursor.fetchall()
 
@@ -283,6 +306,8 @@ def get_all_available_courses():
                                 "content_id": content[0],
                                 "content_name": content[1],
                                 "parent_id": content[2],
+                                "svg": content[3],  # Extracting 'Graphic' column
+                                "progress": random.randint(1, 100),  # Random progress value
                                 "containsChildren": has_children,
                             }
                         )
@@ -292,6 +317,8 @@ def get_all_available_courses():
                             "content_id": content[0],
                             "content_name": content[1],
                             "parent_id": content[2],
+                            "svg": content[3],  # Extracting 'Graphic' column
+                            "progress": random.randint(1, 100),  # Random progress value
                             "containsChildren": has_children,
                         }
                     )
