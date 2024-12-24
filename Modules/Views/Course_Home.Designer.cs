@@ -55,12 +55,33 @@
             // 
             // back_button
             // 
-            back_button.Location = new Point(3, 3);
+            // Define the back_button properties
+            back_button.Location = new Point(10, back_button.Parent.ClientSize.Height - back_button.Height - 10); // Bottom-left corner
             back_button.Name = "back_button";
-            back_button.Size = new Size(75, 23);
+            back_button.Size = new Size(100, 35); // Slightly larger size for better appearance
             back_button.TabIndex = 0;
             back_button.Text = "Back";
             back_button.UseVisualStyleBackColor = true;
+
+            // Custom styling
+            back_button.FlatStyle = FlatStyle.Flat;
+            back_button.FlatAppearance.BorderSize = 0;
+            back_button.BackColor = Color.FromArgb(51, 122, 183); // Custom blue color
+            back_button.ForeColor = Color.White; // White text color
+            back_button.Font = new Font("Arial", 10, FontStyle.Bold);
+            back_button.Padding = new Padding(10);
+
+            // Optional: Rounded corners using a custom `Graphics` method or using a `Panel` with `Region` property
+            var path = new System.Drawing.Drawing2D.GraphicsPath();
+            path.AddArc(0, 0, 20, 20, 180, 90); // Top-left corner
+            path.AddArc(back_button.Width - 20, 0, 20, 20, 270, 90); // Top-right corner
+            path.AddArc(back_button.Width - 20, back_button.Height - 20, 20, 20, 0, 90); // Bottom-right corner
+            path.AddArc(0, back_button.Height - 20, 20, 20, 90, 90); // Bottom-left corner
+            path.CloseFigure();
+            back_button.Region = new Region(path); // Apply rounded corners
+
+            // Add the button to the form or container
+
             // 
             // Course_Home
             // 
@@ -68,6 +89,8 @@
             AutoScaleMode = AutoScaleMode.Font;
             Controls.Add(pictureBox1);
             Controls.Add(flowLayoutPanel1);
+            Controls.Add(back_button);
+
             Name = "Course_Home";
             Size = new Size(800, 450);
             flowLayoutPanel1.ResumeLayout(false);

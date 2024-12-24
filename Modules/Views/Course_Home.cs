@@ -10,6 +10,7 @@ using System.Windows.Forms;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Prabesh_Academy.Modules.Authentication;
+using Svg;
 
 namespace Prabesh_Academy.Modules.Views
 {
@@ -283,26 +284,75 @@ namespace Prabesh_Academy.Modules.Views
 
         private void DisplayContentCard(dynamic content)
         {
+            // Create the main card panel
             Panel contentCard = new Panel
             {
-                Size = new Size((flowLayoutPanel1.ClientSize.Width - 60) / 3, 80),
+                Size = new Size((flowLayoutPanel1.ClientSize.Width - 60) / 3, 120),
                 BackColor = Color.LightGray,
                 Margin = new Padding(10),
                 Tag = content.content_id,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
+            // SVG display area
+            PictureBox svgPictureBox = new PictureBox
+            {
+                Size = new Size(contentCard.Width / 4, contentCard.Height - 20), // SVG takes 25% width
+                Location = new Point(10, 10),
+                BackColor = Color.White,
+                SizeMode = PictureBoxSizeMode.Zoom
+            };
+
+            // Render the SVG data
+            try
+            {
+                using (var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes((string)content.svg)))
+                {
+                    svgPictureBox.Image = SvgDocument.Open<SvgDocument>(stream).Draw();
+                }
+            }
+            catch
+            {
+                svgPictureBox.BackColor = Color.Red; // Error background if SVG fails
+            }
+
+            contentCard.Controls.Add(svgPictureBox);
+
+            // Text display and progress panel
+            Panel textPanel = new Panel
+            {
+                Location = new Point(svgPictureBox.Width + 20, 10),
+                Size = new Size(contentCard.Width - svgPictureBox.Width - 30, contentCard.Height - 20),
+                BackColor = Color.Transparent
+            };
+
+            // Title label
             Label contentLabel = new Label
             {
                 Text = (string)content.content_name,
-                TextAlign = ContentAlignment.MiddleCenter,
+                TextAlign = ContentAlignment.TopLeft,
                 Font = new Font("Arial", 10, FontStyle.Bold),
-                Location = new Point(10, 10),
-                AutoSize = true
+                AutoSize = false,
+                MaximumSize = new Size(textPanel.Width, 40), // Wrap text if needed
+                Size = new Size(textPanel.Width, 40),
+                Location = new Point(0, 0)
             };
-            contentCard.Controls.Add(contentLabel);
-            flowLayoutPanel1.Controls.Add(contentCard);
+            textPanel.Controls.Add(contentLabel);
 
+            // Progress bar
+            ProgressBar progressBar = new ProgressBar
+            {
+                Value = (int)content.progress,
+                Maximum = 100,
+                Minimum = 0,
+                Size = new Size(textPanel.Width, 20),
+                Location = new Point(0, contentLabel.Bottom + 10)
+            };
+            textPanel.Controls.Add(progressBar);
+
+            contentCard.Controls.Add(textPanel);
+
+            // Click event handler
             contentCard.Click += async (sender, e) =>
             {
                 int? contentId = null;
@@ -310,14 +360,17 @@ namespace Prabesh_Academy.Modules.Views
                 {
                     contentId = (int)content.content_id;
                 }
+
                 if (content.ContainsKey("containsChildren") && content.containsChildren == true)
                 {
+                    // Load children of the current content
                     LoadContentChildren(_navigationStack.Peek().SubjectId.Value, contentId);
                 }
                 else
                 {
                     if (contentId.HasValue)
                     {
+                        // Navigate to LectureView
                         LectureView lectureView = new LectureView(mainFormInstance, contentId.Value) { Dock = DockStyle.Fill };
                         mainFormInstance.Controls.Clear();
                         mainFormInstance.Controls.Add(lectureView);
@@ -328,41 +381,126 @@ namespace Prabesh_Academy.Modules.Views
                     }
                 }
             };
+
+            contentCard.MouseHover += ContentCard_MouseHover;
+            contentCard.MouseLeave += ContentCard_MouseLeave;
+
+
+            // Add the card to the flow layout panel
+            flowLayoutPanel1.Controls.Add(contentCard);
         }
+        private void ContentCard_MouseHover(object? sender, EventArgs e)
+        {
+            if (sender is Panel contentCard)
+            {
+                contentCard.Cursor = Cursors.Hand; // Change cursor to hand
+            }
+        }
+
+        private void ContentCard_MouseLeave(object? sender, EventArgs e)
+        {
+            if (sender is Panel contentCard)
+            {
+                contentCard.Cursor = Cursors.Default; // Reset to default cursor
+            }
+        }
+
+
         private void AddCard(int id, string name, string svgData, int progressPercent, string type, string description = null)
         {
+            // Card panel setup
             Panel card = new Panel
             {
-                Size = new Size((flowLayoutPanel1.ClientSize.Width - 60) / 3, 80),
+                Size = new Size((flowLayoutPanel1.ClientSize.Width - 60) / 3, 120),
                 BackColor = Color.LightGray,
                 Margin = new Padding(10),
                 Tag = id,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
 
+            // SVG display area
+            PictureBox svgPictureBox = new PictureBox
+            {
+                Size = new Size(card.Width / 4, card.Height - 20), // SVG takes up 25% of the card width
+                Location = new Point(10, 10),
+                BackColor = Color.White,
+                SizeMode = PictureBoxSizeMode.Zoom // Ensures the SVG fits nicely
+            };
+
+            // Render SVG data
+            try
+            {
+                using (var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(svgData)))
+                {
+                    svgPictureBox.Image = SvgDocument.Open<SvgDocument>(stream).Draw();
+                }
+            }
+            catch
+            {
+                svgPictureBox.BackColor = Color.Red; // Show an error background if SVG fails
+            }
+
+            card.Controls.Add(svgPictureBox);
+
+            // Text display area (title and progress)
+            Panel textPanel = new Panel
+            {
+                Location = new Point(svgPictureBox.Width + 20, 10),
+                Size = new Size(card.Width - svgPictureBox.Width - 30, card.Height - 20),
+                BackColor = Color.Transparent
+            };
+
+            // Title label
             Label lblName = new Label
             {
                 Text = $"{type.ToUpper()}: {name}",
                 Font = new Font("Arial", 10, FontStyle.Bold),
-                Location = new Point(10, 10),
-                AutoSize = true
+                AutoSize = false,
+                MaximumSize = new Size(textPanel.Width, 0), // Wrap text
+                Size = new Size(textPanel.Width, 40),
+                Location = new Point(0, 0)
             };
-            card.Controls.Add(lblName);
 
-            if (description != null)
+            textPanel.Controls.Add(lblName);
+
+            Point where_is_progress = new Point(0, lblName.Bottom + 10);
+
+            // Optional description
+            if (!string.IsNullOrWhiteSpace(description))
             {
                 Label lblDescription = new Label
                 {
-                    Text = $"Description: {description}",
+                    Text = description,
                     Font = new Font("Arial", 9),
-                    Location = new Point(10, 30),
-                    AutoSize = true
+                    AutoSize = false,
+                    MaximumSize = new Size(textPanel.Width, 0),
+                    Size = new Size(textPanel.Width, 40),
+                    Location = new Point(0, lblName.Bottom + 10)
                 };
-                card.Controls.Add(lblDescription);
+                textPanel.Controls.Add(lblDescription);
+                where_is_progress = new Point(0, lblDescription.Bottom + 10);
             }
+
+
+
+            // Progress bar
+            ProgressBar progressBar = new ProgressBar
+            {
+                Value = progressPercent,
+                Maximum = 100,
+                Minimum = 0,
+                Size = new Size(textPanel.Width, 20),
+                Location = where_is_progress
+            };
+
+            textPanel.Controls.Add(progressBar);
+
+            card.Controls.Add(textPanel);
+
+            // Click event handler for the card
             card.Click += (sender, e) =>
             {
-                switch (type)
+                switch (type.ToLower())
                 {
                     case "level":
                         LoadGroupsForLevel(id);
@@ -378,8 +516,15 @@ namespace Prabesh_Academy.Modules.Views
                         break;
                 }
             };
+
+            card.MouseHover += ContentCard_MouseHover;
+            card.MouseLeave += ContentCard_MouseLeave;
+
+            // Add card to the flow layout panel
             flowLayoutPanel1.Controls.Add(card);
         }
+
+
         private void BackButton_Click(object sender, EventArgs e)
         {
             if (_navigationStack.Count > 1)
