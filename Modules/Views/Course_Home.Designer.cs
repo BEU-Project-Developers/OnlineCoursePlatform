@@ -1,4 +1,10 @@
-﻿namespace Prabesh_Academy.Modules.Views
+﻿using System.Drawing;
+using System.Drawing.Imaging;
+using System.IO;
+using System.Windows.Forms;
+using System.Xml;
+
+namespace Prabesh_Academy.Modules.Views
 {
     partial class Course_Home
     {
@@ -28,45 +34,42 @@
         /// </summary>
         private void InitializeComponent()
         {
-            // Initialize the flowLayoutPanel1
-            flowLayoutPanel1 = new FlowLayoutPanel
-            {
-                Name = "flowLayoutPanel1",
-                Dock = DockStyle.Fill, // Ensures the FlowLayoutPanel fills the entire form or container
-                AutoScroll = true,     // Enables scrolling if content overflows
-                Padding = new Padding(10), // Optional: Adds padding around the panel
-                WrapContents = true,   // Allows wrapping of content (if needed)
-            };
+            this.flowLayoutPanel1 = new System.Windows.Forms.FlowLayoutPanel();
+            this.back_button = new System.Windows.Forms.Button();
+            this.SuspendLayout();
+            // 
+            // flowLayoutPanel1
+            // 
+            this.flowLayoutPanel1.AutoScroll = true;
+            this.flowLayoutPanel1.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.flowLayoutPanel1.Location = new System.Drawing.Point(0, 50);
+            this.flowLayoutPanel1.Name = "flowLayoutPanel1";
+            this.flowLayoutPanel1.Padding = new Padding(0,back_button.Height+10,0,0);
+            this.flowLayoutPanel1.Size = new System.Drawing.Size(800, 361);
+            this.flowLayoutPanel1.TabIndex = 0;
+            this.flowLayoutPanel1.WrapContents = true;
+            // 
+            // back_button
+            // 
+            this.back_button.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)));
+            this.back_button.Location = new System.Drawing.Point(10, 10);
+            this.back_button.Name = "back_button";
+            this.back_button.Size = new System.Drawing.Size(30, 30);
+            this.back_button.TabIndex = 1;
+            this.back_button.UseVisualStyleBackColor = true;
+            this.back_button.Click += new System.EventHandler(this.BackButton_Click);
+            // 
+            // Course_Home
+            // 
+            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.Controls.Add(this.back_button);
+            this.Controls.Add(this.flowLayoutPanel1);
+            this.Name = "Course_Home";
+            this.Size = new System.Drawing.Size(800, 411);
+            this.ResumeLayout(false);
 
-            // Add flowLayoutPanel1 to the form's controls
-            Controls.Add(flowLayoutPanel1);
-
-            // Initialize the back button and position it at the bottom-left corner
-            back_button = new Button
-            {
-                Name = "back_button",
-                Size = new Size(75, 23),
-                Text = "Back",
-                Location = new Point(10, this.ClientSize.Height - 40), // Position it at the bottom-left corner
-                Anchor = AnchorStyles.Bottom | AnchorStyles.Left // Ensure it stays at the bottom-left on resize
-            };
-
-            // Add the click event for the back button
-            back_button.Click += BackButton_Click;
-
-            // Add the back button to the form's controls
-            Controls.Add(back_button);
-
-            // Set form properties
-            Name = "Course_Home";
-            Size = new Size(Width, Height); // Use current width and height
-
-            // Perform layout adjustments
-            flowLayoutPanel1.ResumeLayout(true);
-            ResumeLayout(true);
         }
-
-
 
         #endregion
 
