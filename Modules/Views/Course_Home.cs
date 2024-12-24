@@ -33,9 +33,6 @@ namespace Prabesh_Academy.Modules.Views
             }
             LoadData();
 
-            // Subscribe to back button event
-            this.back_button.Click += BackButton_Click;
-
         }
 
         private async void LoadData()
@@ -287,7 +284,7 @@ namespace Prabesh_Academy.Modules.Views
             // Create the main card panel
             Panel contentCard = new Panel
             {
-                Size = new Size((flowLayoutPanel1.ClientSize.Width - 60) / 3, 120),
+                Size = new Size((flowLayoutPanel1.ClientSize.Width - 90) / 3, 120),
                 BackColor = Color.LightGray,
                 Margin = new Padding(10),
                 Tag = content.content_id,
@@ -411,7 +408,7 @@ namespace Prabesh_Academy.Modules.Views
             // Card panel setup
             Panel card = new Panel
             {
-                Size = new Size((flowLayoutPanel1.ClientSize.Width - 60) / 3, 120),
+                Size = new Size((flowLayoutPanel1.ClientSize.Width - 90) / 3, 120),
                 BackColor = Color.LightGray,
                 Margin = new Padding(10),
                 Tag = id,
