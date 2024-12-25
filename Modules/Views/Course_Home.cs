@@ -233,7 +233,7 @@ namespace Prabesh_Academy.Modules.Views
 
         }
 
-        private void AddCard(int id, string name, string svgData, int progressPercent, string type, string description = null)
+        private void AddCard(int id, string name, string svgData, int progressPercent, string type, string description = null, bool containsChildren = true)
         {
             Panel card = new Panel
             {
@@ -359,7 +359,23 @@ namespace Prabesh_Academy.Modules.Views
                             await ShowSubjectDetails(id);
                             break;
                         case "content":
-                            await LoadContentChildren(_currentSubjectId.Value, id);
+                            if (!tagInfo.ContainsChildren)
+                            {
+                                if (_currentSubjectId.HasValue)
+                                {
+                                    LectureView lectureView = new LectureView(mainFormInstance, id) { Dock = DockStyle.Fill };
+                                    mainFormInstance.Controls.Clear();
+                                    mainFormInstance.Controls.Add(lectureView);
+                                }
+                                else
+                                {
+                                    MessageBox.Show("Content ID is missing to load the lecture.", "Missing Information", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                                }
+                            }
+                            else
+                            {
+                                await LoadContentChildren(_currentSubjectId.Value, id);
+                            }
                             break;
                     }
                 }
@@ -410,7 +426,7 @@ namespace Prabesh_Academy.Modules.Views
         {
             foreach (var content in contentList)
             {
-                AddCard(content.id, content.name, content.svg, content.progress, content.type);
+                AddCard(content.id, content.name, content.svg, content.progress, content.type, containsChildren: content.containsChildren);
             }
         }
 
@@ -418,6 +434,9 @@ namespace Prabesh_Academy.Modules.Views
         {
             public string Type { get; set; }
             public int Id { get; set; }
+
+            public bool ContainsChildren { get; set; }
+
         }
 
 
