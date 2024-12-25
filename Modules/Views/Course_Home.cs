@@ -1,340 +1,181 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Configuration;
 using System.Drawing;
 using System.Linq;
 using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.Xml;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Prabesh_Academy.Modules.Authentication;
 using Svg;
+using System.IO;
 
 namespace Prabesh_Academy.Modules.Views
 {
     public partial class Course_Home : UserControl
     {
         private Main mainFormInstance;
-        private Stack<NavigationState> _navigationStack = new Stack<NavigationState>();
-        private string ApiBaseUrl = ConfigurationManager.ConnectionStrings["ApiBaseUrl"].ConnectionString;
-        string JWTtoken = TokenManager.JWTToken;
+        private readonly string _apiBaseUrl;
+        private readonly string _jwtToken;
+        private Stack<NavigationState> _navigationHistory = new Stack<NavigationState>();
+        private int? _currentLevelId;
+        private int? _currentGroupId;
+        private int? _currentCourseId;
+        private int? _currentSubjectId;
+        private int? _currentParentId;
 
         public Course_Home(Main mainFormArg)
         {
             mainFormInstance = mainFormArg;
             InitializeComponent();
-            LoadBackButtonImage();
-
             this.Dock = DockStyle.Fill;
+
+            _apiBaseUrl = ConfigurationManager.ConnectionStrings["ApiBaseUrl"]?.ConnectionString;
+            _jwtToken = TokenManager.JWTToken;
+
+            LoadBackButtonImage();
+            LoadAvailableCourses();
+        }
+
+        protected override void OnLoad(EventArgs e)
+        {
+            base.OnLoad(e);
             if (mainFormInstance != null)
             {
                 mainFormInstance.Controls.Clear();
                 mainFormInstance.Controls.Add(this);
             }
-            LoadData();
-
         }
+
         private void LoadBackButtonImage()
         {
             string svgContent = @"<svg xmlns=""http://www.w3.org/2000/svg"" width=""20"" height=""20"" fill=""orange""><path d=""M10 20A10 10 0 1 0 0 10a10 10 0 0 0 10 10zm1.289-15.7 1.422 1.4-4.3 4.344 4.289 4.245-1.4 1.422-5.714-5.648z""/></svg>";
             this.back_button.BackgroundImage = SvgToBitmap(svgContent);
             this.back_button.BackgroundImageLayout = ImageLayout.Stretch;
+            this.back_button.Visible = false;
         }
 
         private Bitmap SvgToBitmap(string svgContent)
         {
-            using (var ms = new MemoryStream())
+            using (var ms = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(svgContent)))
             {
-                return SvgDocument.FromSvg<SvgDocument>(svgContent).Draw();
+                return SvgDocument.Open<SvgDocument>(ms).Draw();
             }
         }
 
-        private async Task LoadData()
+        private async Task LoadAvailableCourses(int? levelId = null, int? groupId = null, int? courseId = null, int? subjectId = null, int? parentId = null)
         {
-            await LoadEducationalLevels();
-        }
+            if (string.IsNullOrEmpty(_apiBaseUrl))
+            {
+                MessageBox.Show("API Base URL is not configured.", "Configuration Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
 
-        private async Task LoadEducationalLevels()
-        {
-            _navigationStack.Clear();
-            _navigationStack.Push(new NavigationState { LevelId = null, GroupId = null, CourseId = null, SubjectId = null, ParentId = null });
-            await LoadDataFromApi();
-        }
+            if (string.IsNullOrEmpty(_jwtToken))
+            {
+                MessageBox.Show("JWT Token is missing. Please login.", "Authentication Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
-        private async Task LoadGroupsForLevel(int levelId)
-        {
-            _navigationStack.Push(new NavigationState { LevelId = levelId, GroupId = null, CourseId = null, SubjectId = null, ParentId = null });
-            await LoadDataFromApi(levelId: levelId);
-        }
-
-        private async Task LoadCoursesForGroup(int groupId)
-        {
-            int? levelId = _navigationStack.Peek().LevelId;
-            _navigationStack.Push(new NavigationState { LevelId = levelId, GroupId = groupId, CourseId = null, SubjectId = null, ParentId = null });
-            await LoadDataFromApi(levelId: levelId, groupId: groupId);
-        }
-
-        private async Task ShowCourseDetails(int courseId)
-        {
-            int? levelId = _navigationStack.Peek().LevelId;
-            int? groupId = _navigationStack.Peek().GroupId;
-            _navigationStack.Push(new NavigationState { LevelId = levelId, GroupId = groupId, CourseId = courseId, SubjectId = null, ParentId = null });
-            await LoadDataFromApi(levelId: levelId, groupId: groupId, courseId: courseId);
-        }
-
-        private async Task ShowSubjectDetails(int subjectId)
-        {
-            int? levelId = _navigationStack.Peek().LevelId;
-            int? groupId = _navigationStack.Peek().GroupId;
-            int? courseId = _navigationStack.Peek().CourseId;
-            _navigationStack.Push(new NavigationState { LevelId = levelId, GroupId = groupId, CourseId = courseId, SubjectId = subjectId, ParentId = null });
-            await LoadDataFromApi(levelId: levelId, groupId: groupId, courseId: courseId, subjectId: subjectId);
-        }
-
-        private async Task LoadContentChildren(int subjectId, int? parentId)
-        {
-            int? levelId = _navigationStack.Peek().LevelId;
-            int? groupId = _navigationStack.Peek().GroupId;
-            int? courseId = _navigationStack.Peek().CourseId;
-            _navigationStack.Push(new NavigationState { LevelId = levelId, GroupId = groupId, CourseId = courseId, SubjectId = subjectId, ParentId = parentId });
-            await LoadDataFromApi(levelId: levelId, groupId: groupId, courseId: courseId, subjectId: subjectId, parentId: parentId);
-        }
-
-        private async Task LoadDataFromApi(int? levelId = null, int? groupId = null, int? courseId = null, int? subjectId = null, int? parentId = null)
-        {
             flowLayoutPanel1.Controls.Clear();
+            _currentLevelId = levelId;
+            _currentGroupId = groupId;
+            _currentCourseId = courseId;
+            _currentSubjectId = subjectId;
+            _currentParentId = parentId;
+
+            var client = new HttpClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _jwtToken);
+
+            string url = $"{_apiBaseUrl}/allAvailableCourses";
+            var queryParams = new Dictionary<string, string>();
+
+            if (levelId.HasValue) queryParams.Add("level_id", levelId.Value.ToString());
+            if (groupId.HasValue && levelId.HasValue) queryParams.Add("group_id", groupId.Value.ToString());
+            if (courseId.HasValue && groupId.HasValue && levelId.HasValue) queryParams.Add("course_id", courseId.Value.ToString());
+            if (subjectId.HasValue && courseId.HasValue && groupId.HasValue && levelId.HasValue) queryParams.Add("subject_id", subjectId.Value.ToString());
+            if (parentId.HasValue && subjectId.HasValue && courseId.HasValue && groupId.HasValue && levelId.HasValue) queryParams.Add("parent_id", parentId.Value.ToString());
+
+            if (queryParams.Any())
+            {
+                url += "?" + string.Join("&", queryParams.Select(kvp => $"{kvp.Key}={kvp.Value}"));
+            }
+
             try
             {
-                using (HttpClient client = new HttpClient())
+                var response = await client.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                var jsonString = await response.Content.ReadAsStringAsync();
+                var items = JsonConvert.DeserializeObject<List<CourseItem>>(jsonString);
+
+                if (items != null)
                 {
-                    client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", JWTtoken);
-
-                    string url = $"{ApiBaseUrl}/allAvailableCourses?";
-                    if (levelId.HasValue) url += $"level_id={levelId}&";
-                    if (groupId.HasValue) url += $"group_id={groupId}&";
-                    if (courseId.HasValue) url += $"course_id={courseId}&";
-                    if (subjectId.HasValue) url += $"subject_id={subjectId}&";
-                    if (parentId.HasValue) url += $"parent_id={parentId}&";
-
-                    if (url.EndsWith("&"))
+                    foreach (var item in items)
                     {
-                        url = url.TrimEnd('&');
-                    }
-
-                    HttpResponseMessage response = await client.GetAsync(url);
-                    response.EnsureSuccessStatusCode();
-                    string jsonResponse = await response.Content.ReadAsStringAsync();
-                    dynamic result = JsonConvert.DeserializeObject<dynamic>(jsonResponse);
-
-                    if (result is JArray jArrayResult)
-                    {
-                        // Handle lists of items (levels, groups, courses, subjects)
-                        foreach (var item in jArrayResult)
-                        {
-                            string type = item["type"]?.ToString().ToLower() ?? (subjectId.HasValue ? "content" : "");
-                            string description = item["description"]?.ToString();
-                            AddCard((int)item["id"], (string)item["name"], (string)item["svg"], (int)item["progress"], type, description);
-                        }
-                    }
-                    else if (result is JObject jObjectResult)
-                    {
-                        if (subjectId.HasValue && jObjectResult.ContainsKey("contents"))
-                        {
-                            DisplayContentHierarchy(JsonConvert.DeserializeObject<List<dynamic>>(jObjectResult["contents"].ToString()));
-                        }
-                        else if (jObjectResult.ContainsKey("type") && jObjectResult["type"] != null && jObjectResult["type"].ToString() == "subject_id")
-                        {
-                            await ShowSubjectDetails((int)jObjectResult["data"]);
-                        }
-                        else if (jObjectResult.ContainsKey("contents")) // Check for direct content
-                        {
-                            DisplayContentHierarchy(JsonConvert.DeserializeObject<List<dynamic>>(jObjectResult["contents"].ToString()));
-                        }
+                        AddCard(item.id, item.name, item.svg, item.progress, item.type, item.description);
                     }
                 }
             }
             catch (HttpRequestException ex)
             {
-                MessageBox.Show($"Http error : {ex.Message}");
+                MessageBox.Show($"Error communicating with the API: {ex.Message}", "API Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (JsonException ex)
+            {
+                MessageBox.Show($"Error parsing API response: {ex.Message}", "JSON Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error: {ex.Message}");
-            }
-        }
-
-        private void DisplayContentHierarchy(List<dynamic> contentList)
-        {
-            foreach (var content in contentList)
-            {
-                DisplayContentCard(content);
+                MessageBox.Show($"An unexpected error occurred: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
+            back_button.Visible = _navigationHistory.Count > 0;
         }
 
-        private void DisplayContentCard(dynamic content)
+        private void AddCard(int id, string name, string svgData, int progressPercent, string type, string description = null)
         {
-            // Create the main card panel
-            Panel contentCard = new Panel
+            Panel card = new Panel
             {
-                Size = new Size((flowLayoutPanel1.ClientSize.Width - 90) / 3, 120),
+                Size = new Size((flowLayoutPanel1.ClientSize.Width > 0 ? (flowLayoutPanel1.ClientSize.Width - 60) / 3 : 200), 120),
                 BackColor = Color.LightGray,
                 Margin = new Padding(10),
-                Tag = content.content_id,
+                Tag = new CardInfo { Type = type.ToLower(), Id = id },
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
-            contentCard.Cursor = Cursors.Hand; // Set cursor for the entire card
+            card.Cursor = Cursors.Hand;
 
-            // SVG display area
             PictureBox svgPictureBox = new PictureBox
             {
-                Size = new Size(contentCard.Width / 4, contentCard.Height - 20), // SVG takes 25% width
+                Size = new Size(card.Width / 4, card.Height - 20),
                 Location = new Point(10, 10),
                 BackColor = Color.White,
                 SizeMode = PictureBoxSizeMode.Zoom
             };
 
-            // Render the SVG data
             try
             {
-                using (var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes((string)content.svg)))
+                if (!string.IsNullOrWhiteSpace(svgData))
                 {
-                    svgPictureBox.Image = SvgDocument.Open<SvgDocument>(stream).Draw();
-                }
-            }
-            catch
-            {
-                svgPictureBox.BackColor = Color.Red; // Error background if SVG fails
-            }
-
-            contentCard.Controls.Add(svgPictureBox);
-
-            // Text display and progress panel
-            Panel textPanel = new Panel
-            {
-                Location = new Point(svgPictureBox.Width + 20, 10),
-                Size = new Size(contentCard.Width - svgPictureBox.Width - 30, contentCard.Height - 20),
-                BackColor = Color.Transparent
-            };
-
-            // Title label
-            Label contentLabel = new Label
-            {
-                Text = (string)content.content_name,
-                TextAlign = ContentAlignment.TopLeft,
-                Font = new Font("Arial", 10, FontStyle.Bold),
-                AutoSize = false,
-                MaximumSize = new Size(textPanel.Width, 40), // Wrap text if needed
-                Size = new Size(textPanel.Width, 40),
-                Location = new Point(0, 0)
-            };
-            textPanel.Controls.Add(contentLabel);
-
-            // Progress bar
-            ProgressBar progressBar = new ProgressBar
-            {
-                Value = (int)content.progress,
-                Maximum = 100,
-                Minimum = 0,
-                Size = new Size(textPanel.Width, 20),
-                Location = new Point(0, contentLabel.Bottom + 10)
-            };
-            textPanel.Controls.Add(progressBar);
-
-            contentCard.Controls.Add(textPanel);
-
-            // Click event handler
-            contentCard.Click += async (sender, e) =>
-            {
-                int? contentId = null;
-                if (content.content_id != null)
-                {
-                    contentId = (int)content.content_id;
-                }
-
-                if (content.ContainsKey("containsChildren") && content.containsChildren == true)
-                {
-                    // Load children of the current content
-                    await LoadContentChildren(_navigationStack.Peek().SubjectId.Value, contentId);
+                    using (var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(svgData)))
+                    {
+                        svgPictureBox.Image = SvgDocument.Open<SvgDocument>(stream).Draw();
+                    }
                 }
                 else
                 {
-                    if (contentId.HasValue)
-                    {
-                        // Navigate to LectureView
-                        LectureView lectureView = new LectureView(mainFormInstance, contentId.Value) { Dock = DockStyle.Fill };
-                        mainFormInstance.Controls.Clear();
-                        mainFormInstance.Controls.Add(lectureView);
-                    }
-                    else
-                    {
-                        MessageBox.Show("Invalid Content Id");
-                    }
-                }
-            };
-
-            contentCard.MouseHover += ContentCard_MouseHover;
-            contentCard.MouseLeave += ContentCard_MouseLeave;
-
-            // Add the card to the flow layout panel
-            flowLayoutPanel1.Controls.Add(contentCard);
-        }
-        private void ContentCard_MouseHover(object? sender, EventArgs e)
-        {
-            if (sender is Panel contentCard)
-            {
-                contentCard.BackColor = Color.DarkGray; // Example hover effect
-            }
-        }
-
-        private void ContentCard_MouseLeave(object? sender, EventArgs e)
-        {
-            if (sender is Panel contentCard)
-            {
-                contentCard.BackColor = Color.LightGray; // Reset background color
-            }
-        }
-
-        private void AddCard(int id, string name, string svgData, int progressPercent, string type, string description = null)
-        {
-            // Card panel setup
-            Panel card = new Panel
-            {
-                Size = new Size((flowLayoutPanel1.ClientSize.Width - 90) / 3, 120),
-                BackColor = Color.LightGray,
-                Margin = new Padding(10),
-                Tag = id,
-                Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
-            };
-            card.Cursor = Cursors.Hand; // Set cursor for the entire card
-
-            // SVG display area
-            PictureBox svgPictureBox = new PictureBox
-            {
-                Size = new Size(card.Width / 4, card.Height - 20), // SVG takes up 25% of the card width
-                Location = new Point(10, 10),
-                BackColor = Color.White,
-                SizeMode = PictureBoxSizeMode.Zoom // Ensures the SVG fits nicely
-            };
-
-            // Render SVG data
-            try
-            {
-                using (var stream = new System.IO.MemoryStream(System.Text.Encoding.UTF8.GetBytes(svgData)))
-                {
-                    svgPictureBox.Image = SvgDocument.Open<SvgDocument>(stream).Draw();
+                    svgPictureBox.BackColor = Color.Gray;
                 }
             }
             catch
             {
-                svgPictureBox.BackColor = Color.Red; // Show an error background if SVG fails
+                svgPictureBox.BackColor = Color.Red;
             }
-
             card.Controls.Add(svgPictureBox);
 
-            // Text display area (title and progress)
             Panel textPanel = new Panel
             {
                 Location = new Point(svgPictureBox.Width + 20, 10),
@@ -342,22 +183,18 @@ namespace Prabesh_Academy.Modules.Views
                 BackColor = Color.Transparent
             };
 
-            // Title label
             Label lblName = new Label
             {
                 Text = $"{type.ToUpper()}: {name}",
                 Font = new Font("Arial", 10, FontStyle.Bold),
                 AutoSize = false,
-                MaximumSize = new Size(textPanel.Width, 0), // Wrap text
+                MaximumSize = new Size(textPanel.Width, 0),
                 Size = new Size(textPanel.Width, 40),
                 Location = new Point(0, 0)
             };
-
             textPanel.Controls.Add(lblName);
 
-            Point where_is_progress = new Point(0, lblName.Bottom + 10);
-
-            // Optional description
+            Point whereIsProgress = new Point(0, lblName.Bottom + 10);
             if (!string.IsNullOrWhiteSpace(description))
             {
                 Label lblDescription = new Label
@@ -370,83 +207,197 @@ namespace Prabesh_Academy.Modules.Views
                     Location = new Point(0, lblName.Bottom + 10)
                 };
                 textPanel.Controls.Add(lblDescription);
-                where_is_progress = new Point(0, lblDescription.Bottom + 10);
+                whereIsProgress = new Point(0, lblDescription.Bottom + 10);
             }
 
-
-
-            // Progress bar
             ProgressBar progressBar = new ProgressBar
             {
                 Value = progressPercent,
                 Maximum = 100,
                 Minimum = 0,
                 Size = new Size(textPanel.Width, 20),
-                Location = where_is_progress
+                Location = whereIsProgress
             };
-
             textPanel.Controls.Add(progressBar);
-
             card.Controls.Add(textPanel);
 
-            // Click event handler for the card
-            card.Click += async (sender, e) =>
-            {
-                switch (type.ToLower())
-                {
-                    case "level":
-                        await LoadGroupsForLevel(id);
-                        break;
-                    case "group":
-                        await LoadCoursesForGroup(id);
-                        break;
-                    case "course":
-                        await ShowCourseDetails(id);
-                        break;
-                    case "subject":
-                        await ShowSubjectDetails(id);
-                        break;
-                    case "content":
-                        await LoadContentChildren(_navigationStack.Peek().SubjectId.Value, id);
-                        break;
-                }
-            };
-
-            card.MouseHover += ContentCard_MouseHover;
+            card.Click += Card_Click;
+            card.MouseEnter += ContentCard_MouseHover;
             card.MouseLeave += ContentCard_MouseLeave;
 
-            // Add card to the flow layout panel
             flowLayoutPanel1.Controls.Add(card);
+        }
+
+        private async void Card_Click(object sender, EventArgs e)
+        {
+            if (sender is Panel card)
+            {
+                if (card.Tag is CardInfo tagInfo)
+                {
+                    string type = tagInfo.Type;
+                    int id = tagInfo.Id;
+
+                    _navigationHistory.Push(new NavigationState
+                    {
+                        LevelId = _currentLevelId,
+                        GroupId = _currentGroupId,
+                        CourseId = _currentCourseId,
+                        SubjectId = _currentSubjectId,
+                        ParentId = _currentParentId
+                    });
+
+                    switch (type)
+                    {
+                        case "level":
+                            await LoadAvailableCourses(levelId: id);
+                            break;
+                        case "group":
+                            await LoadAvailableCourses(levelId: _currentLevelId, groupId: id);
+                            break;
+                        case "course":
+                            MessageBox.Show("Clicked on course?");
+                            await LoadAvailableCourses(levelId: _currentLevelId, groupId: _currentGroupId, courseId: id);
+                            break;
+                        case "subject":
+                            await ShowSubjectDetails(id);
+                            break;
+                        case "content":
+                            await LoadContentChildren(_currentSubjectId.Value, id);
+                            break;
+                    }
+                }
+            }
+        }
+
+        private async Task ShowSubjectDetails(int subjectId)
+        {
+            // When showing subject details, we need the context of the current level, group, and course
+            await LoadAvailableCourses(_currentLevelId, _currentGroupId, _currentCourseId, subjectId: subjectId);
+        }
+
+        private async Task LoadContentChildren(int subjectId, int? parentId)
+        {
+            if (string.IsNullOrEmpty(_apiBaseUrl) || string.IsNullOrEmpty(_jwtToken)) return;
+
+            flowLayoutPanel1.Controls.Clear();
+
+            var client = new HttpClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _jwtToken);
+
+            // Ensure all necessary parameters are passed
+            string url = $"{_apiBaseUrl}/allAvailableCourses?level_id={_currentLevelId}&group_id={_currentGroupId}&course_id={_currentCourseId}&subject_id={subjectId}";
+            if (parentId.HasValue)
+            {
+                url += $"&parent_id={parentId.Value}";
+            }
+
+            try
+            {
+                var response = await client.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+                var jsonString = await response.Content.ReadAsStringAsync();
+                var contentList = JsonConvert.DeserializeObject<List<CourseItem>>(jsonString);
+
+                if (contentList != null)
+                {
+                    DisplayContentHierarchy(contentList);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading content: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void DisplayContentHierarchy(List<CourseItem> contentList)
+        {
+            foreach (var content in contentList)
+            {
+                DisplayContentCard(content);
+            }
+        }
+
+        private void DisplayContentCard(CourseItem content)
+        {
+            Panel card = new Panel
+            {
+                Size = new Size((flowLayoutPanel1.ClientSize.Width > 0 ? (flowLayoutPanel1.ClientSize.Width - 60) / 3 : 200), 80),
+                BackColor = Color.AliceBlue,
+                Margin = new Padding(10),
+                Tag = new CardInfo { Type = "content", Id = content.id },
+                Cursor = Cursors.Hand
+            };
+
+            Label nameLabel = new Label
+            {
+                Text = content.name,
+                Font = new Font("Arial", 10),
+                Dock = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            card.Controls.Add(nameLabel);
+
+            card.Click += Card_Click;
+            flowLayoutPanel1.Controls.Add(card);
+        }
+
+        private class CardInfo
+        {
+            public string Type { get; set; }
+            public int Id { get; set; }
+        }
+
+ 
+
+        private void ContentCard_MouseHover(object sender, EventArgs e)
+        {
+            if (sender is Panel card)
+            {
+                card.BackColor = Color.CornflowerBlue;
+            }
+        }
+
+        private void ContentCard_MouseLeave(object sender, EventArgs e)
+        {
+            if (sender is Panel card)
+            {
+                card.BackColor = Color.LightGray;
+            }
         }
 
         private async void BackButton_Click(object sender, EventArgs e)
         {
-            if (_navigationStack.Count > 1)
+            if (_navigationHistory.Count > 0)
             {
-                _navigationStack.Pop(); // Remove the current state
-                var previousState = _navigationStack.Peek();
-                await LoadDataFromNavigationState(previousState);
+                var previousState = _navigationHistory.Pop();
+                await LoadAvailableCourses(
+                    previousState.LevelId,
+                    previousState.GroupId,
+                    previousState.CourseId,
+                    previousState.SubjectId,
+                    previousState.ParentId
+                );
             }
+            // Back button visibility is managed in LoadAvailableCourses method
         }
+    }
 
-        private async Task LoadDataFromNavigationState(NavigationState state)
-        {
-            await LoadDataFromApi(
-                levelId: state.LevelId,
-                groupId: state.GroupId,
-                courseId: state.CourseId,
-                subjectId: state.SubjectId,
-                parentId: state.ParentId
-            );
-        }
+    public class CourseItem
+    {
+        public string type { get; set; }
+        public int id { get; set; }
+        public string name { get; set; }
+        public string svg { get; set; }
+        public int progress { get; set; }
+        public string description { get; set; }
+    }
 
-        private class NavigationState
-        {
-            public int? LevelId { get; set; }
-            public int? GroupId { get; set; }
-            public int? CourseId { get; set; }
-            public int? SubjectId { get; set; }
-            public int? ParentId { get; set; }
-        }
+    internal class NavigationState
+    {
+        public int? LevelId { get; set; }
+        public int? GroupId { get; set; }
+        public int? CourseId { get; set; }
+        public int? SubjectId { get; set; }
+        public int? ParentId { get; set; }
     }
 }

@@ -303,8 +303,9 @@ def get_all_available_courses():
                     if content[2] is None:
                         content_list.append(
                             {
-                                "content_id": content[0],
-                                "content_name": content[1],
+                                "type":"content",
+                                "id": content[0],
+                                "name": content[1],
                                 "parent_id": content[2],
                                 "svg": content[3],  # Extracting 'Graphic' column
                                 "progress": random.randint(1, 100),  # Random progress value
@@ -314,8 +315,9 @@ def get_all_available_courses():
                 elif content[2] == parent_id:
                     content_list.append(
                         {
-                            "content_id": content[0],
-                            "content_name": content[1],
+                            "type": "content",
+                            "id": content[0],
+                            "name": content[1],
                             "parent_id": content[2],
                             "svg": content[3],  # Extracting 'Graphic' column
                             "progress": random.randint(1, 100),  # Random progress value

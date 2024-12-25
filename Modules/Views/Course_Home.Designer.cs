@@ -57,7 +57,7 @@ namespace Prabesh_Academy.Modules.Views
             this.back_button.Size = new System.Drawing.Size(30, 30);
             this.back_button.TabIndex = 1;
             this.back_button.UseVisualStyleBackColor = true;
-            this.back_button.Click += new System.EventHandler(this.BackButton_Click);
+            this.back_button.Click += new System.EventHandler(BackButton_Click);
             // 
             // Course_Home
             // 
