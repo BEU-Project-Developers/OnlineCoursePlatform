@@ -37,7 +37,14 @@ namespace Prabesh_Academy.Modules.Views
             _jwtToken = TokenManager.JWTToken;
 
             LoadBackButtonImage();
-            LoadAvailableCourses();
+            LoadInitialData();
+        }
+
+        private async Task LoadInitialData()
+        {
+            await LoadAvailableCourses();
+            _navigationHistory.Clear();
+            UpdateBackButtonVisibility();
         }
 
         protected override void OnLoad(EventArgs e)
@@ -55,7 +62,7 @@ namespace Prabesh_Academy.Modules.Views
             string svgContent = @"<svg xmlns=""http://www.w3.org/2000/svg"" width=""20"" height=""20"" fill=""orange""><path d=""M10 20A10 10 0 1 0 0 10a10 10 0 0 0 10 10zm1.289-15.7 1.422 1.4-4.3 4.344 4.289 4.245-1.4 1.422-5.714-5.648z""/></svg>";
             this.back_button.BackgroundImage = SvgToBitmap(svgContent);
             this.back_button.BackgroundImageLayout = ImageLayout.Stretch;
-            this.back_button.Visible = false;
+            UpdateBackButtonVisibility();
         }
 
         private Bitmap SvgToBitmap(string svgContent)
@@ -66,7 +73,7 @@ namespace Prabesh_Academy.Modules.Views
             }
         }
 
-        private async Task LoadAvailableCourses(int? levelId = null, int? groupId = null, int? courseId = null, int? subjectId = null, int? parentId = null)
+        private async Task LoadAvailableCourses(int? levelId = null, int? groupId = null, int? courseId = null, int? subjectId = null, int? parentId = null, bool navigateDirectlyIfOneSubject = false)
         {
             if (string.IsNullOrEmpty(_apiBaseUrl))
             {
@@ -78,6 +85,20 @@ namespace Prabesh_Academy.Modules.Views
             {
                 MessageBox.Show("JWT Token is missing. Please login.", "Authentication Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
+            }
+
+            // Store navigation state only if parameters have changed and it's not an automatic navigation
+            if (flowLayoutPanel1.Controls.Count > 0 && !navigateDirectlyIfOneSubject &&
+                (_currentLevelId != levelId || _currentGroupId != groupId || _currentCourseId != courseId || _currentSubjectId != subjectId || _currentParentId != parentId))
+            {
+                _navigationHistory.Push(new NavigationState
+                {
+                    LevelId = _currentLevelId,
+                    GroupId = _currentGroupId,
+                    CourseId = _currentCourseId,
+                    SubjectId = _currentSubjectId,
+                    ParentId = _currentParentId
+                });
             }
 
             flowLayoutPanel1.Controls.Clear();
@@ -94,10 +115,10 @@ namespace Prabesh_Academy.Modules.Views
             var queryParams = new Dictionary<string, string>();
 
             if (levelId.HasValue) queryParams.Add("level_id", levelId.Value.ToString());
-            if (groupId.HasValue && levelId.HasValue) queryParams.Add("group_id", groupId.Value.ToString());
-            if (courseId.HasValue && groupId.HasValue && levelId.HasValue) queryParams.Add("course_id", courseId.Value.ToString());
-            if (subjectId.HasValue && courseId.HasValue && groupId.HasValue && levelId.HasValue) queryParams.Add("subject_id", subjectId.Value.ToString());
-            if (parentId.HasValue && subjectId.HasValue && courseId.HasValue && groupId.HasValue && levelId.HasValue) queryParams.Add("parent_id", parentId.Value.ToString());
+            if (groupId.HasValue) queryParams.Add("group_id", groupId.Value.ToString());
+            if (courseId.HasValue) queryParams.Add("course_id", courseId.Value.ToString());
+            if (subjectId.HasValue) queryParams.Add("subject_id", subjectId.Value.ToString());
+            if (parentId.HasValue) queryParams.Add("parent_id", parentId.Value.ToString());
 
             if (queryParams.Any())
             {
@@ -114,9 +135,19 @@ namespace Prabesh_Academy.Modules.Views
 
                 if (items != null)
                 {
+                    if (navigateDirectlyIfOneSubject && courseId.HasValue)
+                    {
+                        var subjects = items.Where(item => item.type?.ToLower() == "subject").ToList();
+                        if (subjects.Count == 1)
+                        {
+                            await LoadAvailableCourses(levelId: _currentLevelId, groupId: _currentGroupId, courseId: _currentCourseId, subjectId: subjects[0].id);
+                            return;
+                        }
+                    }
+
                     foreach (var item in items)
                     {
-                        AddCard(item.id, item.name, item.svg, item.progress, item.type, item.description);
+                        AddCard(item.id, item.name, item.svg, item.progress, item.type, item.description, item.containsChildren);
                     }
                 }
             }
@@ -133,17 +164,17 @@ namespace Prabesh_Academy.Modules.Views
                 MessageBox.Show($"An unexpected error occurred: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
-            back_button.Visible = _navigationHistory.Count > 0;
+            UpdateBackButtonVisibility();
         }
 
-        private void AddCard(int id, string name, string svgData, int progressPercent, string type, string description = null)
+        private void AddCard(int id, string name, string svgData, int progressPercent, string type, string description = null, bool containsChildren = false)
         {
             Panel card = new Panel
             {
                 Size = new Size((flowLayoutPanel1.ClientSize.Width > 0 ? (flowLayoutPanel1.ClientSize.Width - 60) / 3 : 200), 120),
                 BackColor = Color.LightGray,
                 Margin = new Padding(10),
-                Tag = new CardInfo { Type = type.ToLower(), Id = id },
+                Tag = new CardInfo { Type = type?.ToLower(), Id = id },
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
             card.Cursor = Cursors.Hand;
@@ -185,7 +216,7 @@ namespace Prabesh_Academy.Modules.Views
 
             Label lblName = new Label
             {
-                Text = $"{type.ToUpper()}: {name}",
+                Text = $"{type?.ToUpper()}: {name}",
                 Font = new Font("Arial", 10, FontStyle.Bold),
                 AutoSize = false,
                 MaximumSize = new Size(textPanel.Width, 0),
@@ -221,6 +252,19 @@ namespace Prabesh_Academy.Modules.Views
             textPanel.Controls.Add(progressBar);
             card.Controls.Add(textPanel);
 
+            if (containsChildren)
+            {
+                Label lblHasChildren = new Label
+                {
+                    Text = "►",
+                    Font = new Font("Arial", 12, FontStyle.Bold),
+                    ForeColor = Color.DarkGray,
+                    AutoSize = true,
+                    Location = new Point(card.Width - 30, card.Height / 2 - 10)
+                };
+                card.Controls.Add(lblHasChildren);
+            }
+
             card.Click += Card_Click;
             card.MouseEnter += ContentCard_MouseHover;
             card.MouseLeave += ContentCard_MouseLeave;
@@ -237,14 +281,13 @@ namespace Prabesh_Academy.Modules.Views
                     string type = tagInfo.Type;
                     int id = tagInfo.Id;
 
-                    _navigationHistory.Push(new NavigationState
+                    var clickedItem = await GetCourseItemDetails(type, id);
+
+                    if (clickedItem != null && !clickedItem.containsChildren)
                     {
-                        LevelId = _currentLevelId,
-                        GroupId = _currentGroupId,
-                        CourseId = _currentCourseId,
-                        SubjectId = _currentSubjectId,
-                        ParentId = _currentParentId
-                    });
+                        MessageBox.Show($"No content available for: {clickedItem.name}", "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
 
                     switch (type)
                     {
@@ -255,40 +298,38 @@ namespace Prabesh_Academy.Modules.Views
                             await LoadAvailableCourses(levelId: _currentLevelId, groupId: id);
                             break;
                         case "course":
-                            MessageBox.Show("Clicked on course?");
-                            await LoadAvailableCourses(levelId: _currentLevelId, groupId: _currentGroupId, courseId: id);
+                            await LoadAvailableCourses(levelId: _currentLevelId, groupId: _currentGroupId, courseId: id, navigateDirectlyIfOneSubject: true);
                             break;
                         case "subject":
-                            await ShowSubjectDetails(id);
+                            await LoadAvailableCourses(levelId: _currentLevelId, groupId: _currentGroupId, courseId: _currentCourseId, subjectId: id);
                             break;
                         case "content":
-                            await LoadContentChildren(_currentSubjectId.Value, id);
+                            await LoadAvailableCourses(levelId: _currentLevelId, groupId: _currentGroupId, courseId: _currentCourseId, subjectId: _currentSubjectId, parentId: id);
                             break;
                     }
                 }
             }
         }
 
-        private async Task ShowSubjectDetails(int subjectId)
+        private async Task<CourseItem> GetCourseItemDetails(string type, int id)
         {
-            // When showing subject details, we need the context of the current level, group, and course
-            await LoadAvailableCourses(_currentLevelId, _currentGroupId, _currentCourseId, subjectId: subjectId);
-        }
-
-        private async Task LoadContentChildren(int subjectId, int? parentId)
-        {
-            if (string.IsNullOrEmpty(_apiBaseUrl) || string.IsNullOrEmpty(_jwtToken)) return;
-
-            flowLayoutPanel1.Controls.Clear();
+            if (string.IsNullOrEmpty(_apiBaseUrl) || string.IsNullOrEmpty(_jwtToken)) return null;
 
             var client = new HttpClient();
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _jwtToken);
 
-            // Ensure all necessary parameters are passed
-            string url = $"{_apiBaseUrl}/allAvailableCourses?level_id={_currentLevelId}&group_id={_currentGroupId}&course_id={_currentCourseId}&subject_id={subjectId}";
-            if (parentId.HasValue)
+            string url = $"{_apiBaseUrl}/allAvailableCourses";
+            var queryParams = new Dictionary<string, string>();
+
+            if (type == "level") queryParams.Add("level_id", id.ToString());
+            else if (type == "group") queryParams.Add("group_id", id.ToString());
+            else if (type == "course") queryParams.Add("course_id", id.ToString());
+            else if (type == "subject") queryParams.Add("subject_id", id.ToString());
+            else if (type == "content") queryParams.Add("parent_id", id.ToString());
+
+            if (queryParams.Any())
             {
-                url += $"&parent_id={parentId.Value}";
+                url += "?" + string.Join("&", queryParams.Select(kvp => $"{kvp.Key}={kvp.Value}"));
             }
 
             try
@@ -296,58 +337,20 @@ namespace Prabesh_Academy.Modules.Views
                 var response = await client.GetAsync(url);
                 response.EnsureSuccessStatusCode();
                 var jsonString = await response.Content.ReadAsStringAsync();
-                var contentList = JsonConvert.DeserializeObject<List<CourseItem>>(jsonString);
-
-                if (contentList != null)
-                {
-                    DisplayContentHierarchy(contentList);
-                }
+                var items = JsonConvert.DeserializeObject<List<CourseItem>>(jsonString);
+                return items?.FirstOrDefault(item => item.id == id && item.type?.ToLower() == type.ToLower());
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error loading content: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                Console.WriteLine($"Error fetching item details: {ex.Message}");
+                return null;
             }
         }
 
-        private void DisplayContentHierarchy(List<CourseItem> contentList)
+        private void UpdateBackButtonVisibility()
         {
-            foreach (var content in contentList)
-            {
-                DisplayContentCard(content);
-            }
+            back_button.Visible = _navigationHistory.Count > 0;
         }
-
-        private void DisplayContentCard(CourseItem content)
-        {
-            Panel card = new Panel
-            {
-                Size = new Size((flowLayoutPanel1.ClientSize.Width > 0 ? (flowLayoutPanel1.ClientSize.Width - 60) / 3 : 200), 80),
-                BackColor = Color.AliceBlue,
-                Margin = new Padding(10),
-                Tag = new CardInfo { Type = "content", Id = content.id },
-                Cursor = Cursors.Hand
-            };
-
-            Label nameLabel = new Label
-            {
-                Text = content.name,
-                Font = new Font("Arial", 10),
-                Dock = DockStyle.Fill,
-                TextAlign = ContentAlignment.MiddleCenter
-            };
-            card.Controls.Add(nameLabel);
-
-            card.Click += Card_Click;
-            flowLayoutPanel1.Controls.Add(card);
-        }
-
-        private class CardInfo
-        {
-            public string Type { get; set; }
-            public int Id { get; set; }
-        }
-
- 
 
         private void ContentCard_MouseHover(object sender, EventArgs e)
         {
@@ -378,7 +381,13 @@ namespace Prabesh_Academy.Modules.Views
                     previousState.ParentId
                 );
             }
-            // Back button visibility is managed in LoadAvailableCourses method
+            UpdateBackButtonVisibility();
+        }
+
+        private class CardInfo
+        {
+            public string Type { get; set; }
+            public int Id { get; set; }
         }
     }
 
@@ -390,6 +399,7 @@ namespace Prabesh_Academy.Modules.Views
         public string svg { get; set; }
         public int progress { get; set; }
         public string description { get; set; }
+        public bool containsChildren { get; set; }
     }
 
     internal class NavigationState
