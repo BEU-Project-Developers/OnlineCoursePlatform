@@ -359,10 +359,13 @@ namespace Prabesh_Academy.Modules.Views
                             await ShowSubjectDetails(id);
                             break;
                         case "content":
+                            //MessageBox.Show(!tagInfo.ContainsChildren?"does not contain":"contains");
                             if (!tagInfo.ContainsChildren)
                             {
                                 if (_currentSubjectId.HasValue)
                                 {
+                                    MessageBox.Show($"{_currentSubjectId} {id}");
+
                                     LectureView lectureView = new LectureView(mainFormInstance, id) { Dock = DockStyle.Fill };
                                     mainFormInstance.Controls.Clear();
                                     mainFormInstance.Controls.Add(lectureView);

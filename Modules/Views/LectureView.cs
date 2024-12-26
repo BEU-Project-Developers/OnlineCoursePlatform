@@ -24,6 +24,7 @@ namespace Prabesh_Academy.Modules.Views
 
             this.Dock = DockStyle.Fill;
             this.contentId = contentId;
+            MessageBox.Show($"{ contentId}");
             InitializeComponent();
             LoadLectures();
         }
@@ -38,6 +39,8 @@ namespace Prabesh_Academy.Modules.Views
                     response.EnsureSuccessStatusCode();
                     string jsonResponse = await response.Content.ReadAsStringAsync();
                     List<dynamic> lectures = JsonConvert.DeserializeObject<List<dynamic>>(jsonResponse);
+
+                    MessageBox.Show(jsonResponse.ToString());
 
                     // Clear existing rows in the playlist
                     playlistPanel.Controls.Clear();
