@@ -156,9 +156,9 @@ namespace Prabesh_Academy.Modules.Views
                 if (items != null)
                 {
                     // Optimization: If only one item is returned, directly navigate deeper
-                    if (items.Count == 1) // Check to prevent infinite loops
+                    if (items.Count == 1) //
                     {
-                        //if (items.Count == 1 && levelId.HasValue == parentId.HasValue) // Check to prevent infinite loops
+                        //if (items.Count == 1 && levelId.HasValue == parentId.HasValue) // Check to prevent infinite loops, but it was useless maybe.
 
                             var item = items[0];
                         switch (item.type.ToLower())
