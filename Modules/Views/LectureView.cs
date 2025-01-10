@@ -103,7 +103,14 @@ namespace Prabesh_Academy.Modules.Views
         private static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
         private async void ShowLectureContent(int lectureId, string lectureLink, string content)
         {
-            playerPanel.Controls.Clear();
+
+            // Dispose of or stop any existing content in the panel
+            foreach (Control control in playerPanel.Controls)
+            {
+                control.Dispose(); // Dispose any active controls
+            }
+            playerPanel.Controls.Clear(); // Clear controls only after disposing
+
 
             if (!string.IsNullOrEmpty(lectureLink))
             {
@@ -111,39 +118,40 @@ namespace Prabesh_Academy.Modules.Views
                 {
                     if (Uri.IsWellFormedUriString(lectureLink, UriKind.Absolute))
                     {
-                        // Create video panel
-                        videoPanel = new Panel
+                        // Create a WebView2 panel to display the demo HTML content
+                        var webView2Panel = new Panel
                         {
                             Dock = DockStyle.Fill,
-                            BackColor = Color.Black
+                            BackColor = Color.White
                         };
-                        playerPanel.Controls.Add(videoPanel);
+                        playerPanel.Controls.Add(webView2Panel);
 
-                        // Launch the default media player in a new process
-                        System.Diagnostics.Process process = new System.Diagnostics.Process();
-                        process.StartInfo.FileName = "mswindowsmusic:";  // For Windows 11 Media Player
-                        process.StartInfo.Arguments = "http://127.0.0.1:5000/stream?file_path=./assets/hehe.webm";
-                        //process.StartInfo.Arguments = $"?playlisttype=video&url={Uri.EscapeDataString(lectureLink)}";
-
-                        process.StartInfo.UseShellExecute = true;
-
-                        try
+                        // Create WebView2 control
+                        var webView2 = new Microsoft.Web.WebView2.WinForms.WebView2
                         {
-                            process.Start();
+                            Dock = DockStyle.Fill
+                        };
+
+                        // Initialize WebView2
+                        webView2Panel.Controls.Add(webView2);
+
+                        // Ensure WebView2 is initialized
+                        await webView2.EnsureCoreWebView2Async();
+
+                        // Set the source URL of the WebView2 to your HTML file path
+                        //MessageBox.Show(Application.StartupPath);
+                        //string htmlFilePath = Path.Combine(Application.StartupPath, "Modules","WebPlayer", "player.html");
+                        string htmlFilePath = "C:\\Users\\prabe\\Documents\\Class\\3rd Year\\Modern Programmin Language - 1\\Project\\Prabesh Academy\\Modules\\WebPlayer\\player.html";
+                        // Make sure the paths are correctly set to the files
+                        string parameters = $"?videoUrl={Uri.EscapeDataString(lectureLink)}";
+
+                        if (File.Exists(htmlFilePath))
+                        {
+                            webView2.Source = new Uri($"file:///{htmlFilePath}{parameters}");
                         }
-                        catch
+                        else
                         {
-                            // Fallback to legacy method if modern method fails
-                            process.StartInfo.FileName = "wmplayer.exe";
-                            process.StartInfo.Arguments = $"\"{lectureLink}\"";
-                            process.Start();
-                        }
-
-                        // Optional: Set the media player window as a child of your form
-                        await Task.Delay(1000); // Give the player time to start
-                        if (!process.HasExited && process.MainWindowHandle != IntPtr.Zero)
-                        {
-                            SetParent(process.MainWindowHandle, videoPanel.Handle);
+                            MessageBox.Show("HTML file not found!");
                         }
                     }
                     else
