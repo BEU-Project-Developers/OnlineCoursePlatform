@@ -8,14 +8,18 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using Newtonsoft.Json;
 using Prabesh_Academy.Modules.Authentication;
+using System.Windows.Forms.Integration;
+using System.Runtime.InteropServices;
+
 
 namespace Prabesh_Academy.Modules.Views
 {
-    public partial class LectureView : UserControl
+    public partial class LectureView : System.Windows.Forms.UserControl
     {
         private int contentId;
         private string ApiBaseUrl = ConfigurationManager.ConnectionStrings["ApiBaseUrl"].ConnectionString;
         string JWTtoken = TokenManager.JWTToken;
+
 
         public LectureView(Main mainFormInstance, int contentId)
         {
@@ -27,7 +31,9 @@ namespace Prabesh_Academy.Modules.Views
             //MessageBox.Show($"{ contentId}");
             InitializeComponent();
             LoadLectures();
+
         }
+
         private async void LoadLectures()
         {
             try
@@ -90,47 +96,85 @@ namespace Prabesh_Academy.Modules.Views
                 MessageBox.Show($"Error: {ex.Message}");
             }
         }
-        private void ShowLectureContent(int lectureId, string lectureLink, string content)
+
+        private Panel videoPanel;
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern IntPtr SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
+        private async void ShowLectureContent(int lectureId, string lectureLink, string content)
         {
-            //  Load the lecture content into a panel and add it to form
             playerPanel.Controls.Clear();
-            //if not a url then just add text
+
             if (!string.IsNullOrEmpty(lectureLink))
             {
                 try
                 {
-                    WebBrowser webBrowser = new WebBrowser
+                    if (Uri.IsWellFormedUriString(lectureLink, UriKind.Absolute))
                     {
-                        Dock = DockStyle.Fill,
-                        Url = new Uri(lectureLink)
-                    };
-                    playerPanel.Controls.Add(webBrowser);
+                        // Create video panel
+                        videoPanel = new Panel
+                        {
+                            Dock = DockStyle.Fill,
+                            BackColor = Color.Black
+                        };
+                        playerPanel.Controls.Add(videoPanel);
+
+                        // Launch the default media player in a new process
+                        System.Diagnostics.Process process = new System.Diagnostics.Process();
+                        process.StartInfo.FileName = "mswindowsmusic:";  // For Windows 11 Media Player
+                        process.StartInfo.Arguments = "http://127.0.0.1:5000/stream?file_path=./assets/hehe.webm";
+                        //process.StartInfo.Arguments = $"?playlisttype=video&url={Uri.EscapeDataString(lectureLink)}";
+
+                        process.StartInfo.UseShellExecute = true;
+
+                        try
+                        {
+                            process.Start();
+                        }
+                        catch
+                        {
+                            // Fallback to legacy method if modern method fails
+                            process.StartInfo.FileName = "wmplayer.exe";
+                            process.StartInfo.Arguments = $"\"{lectureLink}\"";
+                            process.Start();
+                        }
+
+                        // Optional: Set the media player window as a child of your form
+                        await Task.Delay(1000); // Give the player time to start
+                        if (!process.HasExited && process.MainWindowHandle != IntPtr.Zero)
+                        {
+                            SetParent(process.MainWindowHandle, videoPanel.Handle);
+                        }
+                    }
+                    else
+                    {
+                        ShowMessage("Invalid video link provided.");
+                    }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    Label contentLabel = new Label
-                    {
-                        Text = content,
-                        Dock = DockStyle.Fill,
-                        Font = new Font("Arial", 10),
-                        TextAlign = ContentAlignment.MiddleCenter
-                    };
-                    playerPanel.Controls.Add(contentLabel);
+                    ShowMessage($"Error playing video: {ex.Message}");
                 }
             }
-            else
+            else if (!string.IsNullOrEmpty(content))
             {
-                Label contentLabel = new Label
-                {
-                    Text = content,
-                    Dock = DockStyle.Fill,
-                    Font = new Font("Arial", 10),
-                    TextAlign = ContentAlignment.MiddleCenter
-                };
-                playerPanel.Controls.Add(contentLabel);
+                ShowMessage(content);
             }
         }
 
+        private void ShowMessage(string message)
+        {
+            var label = new Label
+            {
+                Text = message,
+                Dock = DockStyle.Fill,
+                Font = new Font("Arial", 10),
+                TextAlign = ContentAlignment.MiddleCenter,
+                AutoSize = true
+            };
+            playerPanel.Controls.Add(label);
+        }
 
     }
+
 }

@@ -3,17 +3,98 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0-windows</TargetFramework>
+    <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
     <RootNamespace>Prabesh_Academy</RootNamespace>
     <Nullable>enable</Nullable>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
+    <COMReference Include="{215d64d2-031c-33c7-96e3-61794cd1ee61}">
+      <WrapperTool>tlbimp</WrapperTool>
+      <VersionMinor>4</VersionMinor>
+      <VersionMajor>2</VersionMajor>
+      <Guid>215d64d2-031c-33c7-96e3-61794cd1ee61</Guid>
+    </COMReference>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" Version="5.2.2" />
+    <PackageReference Include="Microsoft.Windows.Compatibility" Version="9.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Svg" Version="3.4.7" />
     <PackageReference Include="System.Text.Json" Version="4.7.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="PresentationBuildTasks">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\PresentationBuildTasks.dll</HintPath>
+    </Reference>
+    <Reference Include="PresentationCore">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\PresentationCore.dll</HintPath>
+    </Reference>
+    <Reference Include="PresentationFramework">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\PresentationFramework.dll</HintPath>
+    </Reference>
+    <Reference Include="PresentationFramework.Aero">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\PresentationFramework.Aero.dll</HintPath>
+    </Reference>
+    <Reference Include="PresentationFramework.Classic">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\PresentationFramework.Classic.dll</HintPath>
+    </Reference>
+    <Reference Include="PresentationFramework.Luna">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\PresentationFramework.Luna.dll</HintPath>
+    </Reference>
+    <Reference Include="PresentationFramework.Royale">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\PresentationFramework.Royale.dll</HintPath>
+    </Reference>
+    <Reference Include="ReachFramework">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\ReachFramework.dll</HintPath>
+    </Reference>
+    <Reference Include="System.IdentityModel">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\System.IdentityModel.dll</HintPath>
+    </Reference>
+    <Reference Include="System.IdentityModel.Selectors">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\System.IdentityModel.Selectors.dll</HintPath>
+    </Reference>
+    <Reference Include="System.IO.Log">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\System.IO.Log.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Printing">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\System.Printing.dll</HintPath>
+    </Reference>
+    <Reference Include="System.ServiceModel">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\System.ServiceModel.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Speech">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\System.Speech.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Workflow.Activities">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\System.Workflow.Activities.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Workflow.ComponentModel">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\System.Workflow.ComponentModel.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Workflow.Runtime">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\System.Workflow.Runtime.dll</HintPath>
+    </Reference>
+    <Reference Include="UIAutomationClient">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\UIAutomationClient.dll</HintPath>
+    </Reference>
+    <Reference Include="UIAutomationClientsideProviders">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\UIAutomationClientsideProviders.dll</HintPath>
+    </Reference>
+    <Reference Include="UIAutomationProvider">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\UIAutomationProvider.dll</HintPath>
+    </Reference>
+    <Reference Include="UIAutomationTypes">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\UIAutomationTypes.dll</HintPath>
+    </Reference>
+    <Reference Include="WindowsFormsIntegration">
+      <HintPath>..\..\..\..\..\..\..\..\Program Files\Reference Assemblies\Microsoft\Framework\v3.0\WindowsFormsIntegration.dll</HintPath>
+    </Reference>
   </ItemGroup>
 
 </Project>

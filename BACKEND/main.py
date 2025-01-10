@@ -3,7 +3,7 @@ import jwt
 import datetime
 import random
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, url_for, send_file
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
 
@@ -334,6 +334,31 @@ def get_all_available_courses():
     finally:
         conn.close()
 
+def generate_streamable_url(file_path):
+    """
+    Generate a URL to stream the specified file.
+    """
+    file_path = "./assets/hehe.webm"
+
+    return url_for("stream_media", file_path=file_path, _external=True)
+
+@app.route("/stream", methods=["GET"])
+def stream_media():
+    """
+    Serve a media file as a streamable response.
+    """
+    # file_path = request.args.get("file_path")  # Get file path from query parameter
+    file_path = "./assets/hehe.webm"
+    try:
+        return send_file(
+            file_path,
+            as_attachment=False,
+            mimetype="video/mp4",
+        )
+    except Exception as e:
+        return f"Error streaming file: {str(e)}", 500
+# @token_required
+
 
 @app.route("/lectures/<int:content_id>", methods=["GET"])
 @token_required
@@ -350,7 +375,7 @@ def get_lectures_for_content(content_id):
             {
                 "lecture_id": lecture[0],
                 "lecture_no": lecture[1],
-                "lecture_link": lecture[2],
+                "lecture_link": generate_streamable_url(lecture[2]),
                 "lecture_data": lecture[3],
                 "title": lecture[4],
                 "description": lecture[5],
