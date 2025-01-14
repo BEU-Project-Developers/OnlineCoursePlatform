@@ -115,26 +115,6 @@
     var urlParams = new URLSearchParams(window.location.search);
     var initialVideoUrl = urlParams.get("videoUrl");
 
-    // Lecture data list (replace with your actual JSON data)
-    const lectureDataList = [
-      {
-        "description": null,
-        "lecture_data": "aowHh96scVQJ4+NuMArOkQ==",
-        "lecture_id": 275,
-        "lecture_link": "http://127.0.0.1:5000/stream?file_path=./assets/hehe.webm",
-        "lecture_no": null,
-        "title": "Lecture 1"
-      },
-      {
-        "description": null,
-        "lecture_data": "g07QNuRqWPN4lqTTjMUBFA==",
-        "lecture_id": 276,
-        "lecture_link": "http://127.0.0.1:5000/stream?file_path=./assets/hehe.webm",
-        "lecture_no": null,
-        "title": "Lecture 2"
-      }
-    ];
-
     // Set the video source and type
     var videoSource = document.getElementById("video");
 
@@ -173,9 +153,6 @@
       videoSource.setAttribute("src", e.target.dataset.url);
       video.load();
     }
-
-    // Initialize playlist
-    loadPlaylist(lectureDataList);
 
   </script>
   <script defer src="main.js"></script>
