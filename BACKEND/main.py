@@ -382,6 +382,7 @@ def get_lectures_for_content(content_id):
             }
             for lecture in lectures
         ]
+        print(jsonify(lecture_list))
         return jsonify(lecture_list), 200
 
     except Exception as e:

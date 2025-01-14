@@ -1,35 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="stylesheet" href="style.css" />
-    <script
-      type="module"
-      src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"
-    ></script>
-    <script
-      nomodule
-      src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"
-    ></script>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400;500;600;700;800;900&display=swap"
-      rel="stylesheet"
-    />
-    <title>Custom Video Controls</title>
-  </head>
-<body onload="onPageLoad()">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="style.css" />
+  <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
 
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@200;300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
+  <title>Custom Video Controls</title>
+</head>
+
+<body>
+  <div class="main-container">
     <div class="video-container">
-      <video
-        id="video"
-        disableRemotePlayback
-        src="none"
-      ></video>
+      <video id="video" disableRemotePlayback src=""></video>
       <span class="custom-loader"></span>
       <div class="player-state">
         <span class="state-btn state-backward">
@@ -116,15 +106,79 @@
         </div>
       </div>
     </div>
-    <script>
-      // Get the video URL from the query parameter
-      var urlParams = new URLSearchParams(window.location.search);
-      var videoUrl = urlParams.get("videoUrl");
+    <div class="playlist-container">
+      <ul class="playlist"></ul>
+    </div>
+  </div>
+  <script>
+    // Get the video URL from the query parameter
+    var urlParams = new URLSearchParams(window.location.search);
+    var initialVideoUrl = urlParams.get("videoUrl");
 
-      // Set the video source and type
-      var videoSource = document.getElementById("video");
-      videoSource.setAttribute("src", videoUrl);
-    </script>
-    <script defer src="main.js"></script>
-  </body>
+    // Lecture data list (replace with your actual JSON data)
+    const lectureDataList = [
+      {
+        "description": null,
+        "lecture_data": "aowHh96scVQJ4+NuMArOkQ==",
+        "lecture_id": 275,
+        "lecture_link": "http://127.0.0.1:5000/stream?file_path=./assets/hehe.webm",
+        "lecture_no": null,
+        "title": "Lecture 1"
+      },
+      {
+        "description": null,
+        "lecture_data": "g07QNuRqWPN4lqTTjMUBFA==",
+        "lecture_id": 276,
+        "lecture_link": "http://127.0.0.1:5000/stream?file_path=./assets/hehe.webm",
+        "lecture_no": null,
+        "title": "Lecture 2"
+      }
+    ];
+
+    // Set the video source and type
+    var videoSource = document.getElementById("video");
+
+    const playlistContainer = document.querySelector(".playlist");
+
+    function loadPlaylist(playlistData) {
+      playlistContainer.innerHTML = ''; // Clear existing playlist
+      if (playlistData && playlistData.length > 0) {
+        playlistData.forEach((item, index) => {
+          const list = document.createElement("li");
+          list.dataset.url = item.lecture_link;
+          list.innerHTML = item.title;
+          playlistContainer.appendChild(list);
+          if (index === 0) {
+            list.classList.add("active-list");
+            videoSource.setAttribute("src", initialVideoUrl || item.lecture_link);
+          }
+          list.addEventListener("click", handlePlaylist);
+        });
+        if (!initialVideoUrl && playlistData.length > 0) {
+          videoSource.setAttribute("src", playlistData[0].lecture_link);
+          video.load();
+        }
+      } else {
+        console.log("No lectures found in the data.");
+        if (initialVideoUrl) {
+          videoSource.setAttribute("src", initialVideoUrl);
+          video.load();
+        }
+      }
+    }
+
+    function handlePlaylist(e) {
+      document.querySelectorAll(".playlist li").forEach(item => item.classList.remove('active-list'));
+      e.target.classList.add('active-list');
+      videoSource.setAttribute("src", e.target.dataset.url);
+      video.load();
+    }
+
+    // Initialize playlist
+    loadPlaylist(lectureDataList);
+
+  </script>
+  <script defer src="main.js"></script>
+</body>
+
 </html>

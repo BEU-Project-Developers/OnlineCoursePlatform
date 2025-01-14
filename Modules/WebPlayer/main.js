@@ -424,6 +424,30 @@ function handlePlaybackRateKey(type = "") {
   });
 }
 
+function initPlaylist() {
+  if (lectureData && lectureData.length > 0) {
+    playlistContainer.innerHTML = ''; // Clear existing list
+    lectureData.forEach((item, index) => {
+      const list = document.createElement("li");
+      list.dataset.url = item.lecture_link;
+      list.innerHTML = item.title;
+      playlistContainer.appendChild(list);
+      if (index === 0) {
+        list.classList.add("active-list");
+        video.src = item.lecture_link;
+      }
+      list.addEventListener("click", () => handlePlaylist(item.lecture_link, list));
+    });
+  }
+}
+
+function handlePlaylist(url, listItem) {
+  document.querySelectorAll(".playlist li").forEach(item => item.classList.remove('active-list'));
+  listItem.classList.add('active-list');
+  video.src = url;
+  video.load();
+}
+
 function handleShorthand(e) {
   const tagName = document.activeElement.tagName.toLowerCase();
   if (tagName === "input") return;
@@ -470,12 +494,3 @@ function handleShorthand(e) {
   }
 }
 
-
-function onPageLoad() {
-  setTimeout(() => {
-    if (videoContainer) {
-      videoContainer.requestFullscreen?.(); // Request fullscreen if supported
-    }
-    video?.play?.(); // Play the video if available
-  }, 3000); // Delay by 3 seconds
-}
