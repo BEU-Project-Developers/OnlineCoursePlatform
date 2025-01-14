@@ -12,6 +12,7 @@ using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 using Newtonsoft.Json;
 using Prabesh_Academy.Modules.Authentication;
+using System.Web;
 
 namespace Prabesh_Academy.Modules.Views
 {
@@ -74,13 +75,15 @@ namespace Prabesh_Academy.Modules.Views
                     // Path to the HTML file
                     string htmlFilePath = "C:\\Users\\prabe\\Documents\\Class\\3rd Year\\Modern Programmin Language - 1\\Project\\Prabesh Academy\\Modules\\WebPlayer\\player.html";
 
+                    // Serialize the JSON response
+                    string jsonString = jsonResponse;
+
+                    // Make sure the paths are correctly set to the files
+                    string parameters = $"?lecture_list={Uri.EscapeDataString(jsonString)}";
+
                     if (File.Exists(htmlFilePath))
                     {
-                        webView2.Source = new Uri($"file:///{htmlFilePath}");
-
-                        // Inject script to set the JSON data as a JavaScript variable
-                        string script = $"var playlistData = {jsonResponse}; loadPlaylist(playlistData);";
-                        await webView2.CoreWebView2.ExecuteScriptAsync(script);
+                        webView2.Source = new Uri($"file:///{htmlFilePath}{parameters}");
                     }
                     else
                     {

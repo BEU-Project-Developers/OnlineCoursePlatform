@@ -110,51 +110,60 @@
       <ul class="playlist"></ul>
     </div>
   </div>
-  <script>
-    // Get the video URL from the query parameter
-    var urlParams = new URLSearchParams(window.location.search);
-    var initialVideoUrl = urlParams.get("videoUrl");
+<script>
+  // Get the playlist (lecture list) from the URL parameters
+  var urlParams = new URLSearchParams(window.location.search);
+  var lectureListJson = urlParams.get("lecture_list");
 
-    // Set the video source and type
-    var videoSource = document.getElementById("video");
+  // Parse the lecture list if it exists
+  let lectureList = [];
+  try {
+    if (lectureListJson) {
+      lectureList = JSON.parse(decodeURIComponent(lectureListJson)); // Decode and parse the lecture list
+    }
+  } catch (e) {
+    console.error("Error parsing lecture list:", e);
+  }
 
-    const playlistContainer = document.querySelector(".playlist");
+  // Fallback to a default lecture list if none is found
+  if (lectureList.length === 0) {
+    lectureList = [];
+  }
 
-    function loadPlaylist(playlistData) {
-      playlistContainer.innerHTML = ''; // Clear existing playlist
-      if (playlistData && playlistData.length > 0) {
-        playlistData.forEach((item, index) => {
-          const list = document.createElement("li");
-          list.dataset.url = item.lecture_link;
-          list.innerHTML = item.title;
-          playlistContainer.appendChild(list);
-          if (index === 0) {
-            list.classList.add("active-list");
-            videoSource.setAttribute("src", initialVideoUrl || item.lecture_link);
-          }
-          list.addEventListener("click", handlePlaylist);
-        });
-        if (!initialVideoUrl && playlistData.length > 0) {
-          videoSource.setAttribute("src", playlistData[0].lecture_link);
-          video.load();
-        }
-      } else {
-        console.log("No lectures found in the data.");
-        if (initialVideoUrl) {
-          videoSource.setAttribute("src", initialVideoUrl);
-          video.load();
-        }
+  // Set the video source and type
+  var videoSource = document.getElementById("video");
+  var initialLectureLink = urlParams.get("lecture_link") || lectureList[0].lecture_link; // Default to first lecture if no URL parameter
+  videoSource.setAttribute("src", initialLectureLink);
+
+  const playlistContainer = document.querySelector(".playlist");
+
+  // Render the lecture list dynamically based on the parsed JSON
+  try {
+    lectureList.forEach((item, index) => {
+      const listItem = document.createElement("li");
+      listItem.dataset.url = item.lecture_link;  // Use the lecture_link from the JSON
+      listItem.innerHTML = `${item.title}`;  // Use the title for display
+      playlistContainer.appendChild(listItem);
+
+      if (index === 0) {
+        listItem.classList.add("active-list");  // Mark the first item as active
       }
-    }
 
-    function handlePlaylist(e) {
-      document.querySelectorAll(".playlist li").forEach(item => item.classList.remove('active-list'));
-      e.target.classList.add('active-list');
-      videoSource.setAttribute("src", e.target.dataset.url);
-      video.load();
-    }
+      // Add event listener to handle video change
+      listItem.addEventListener("click", handlePlaylist);
+    });
+  } catch (e) {
+    console.log("Error rendering lecture list:", e);
+  }
 
-  </script>
+  function handlePlaylist(e) {
+    document.querySelectorAll(".playlist li").forEach(item => item.classList.remove('active-list'));
+    e.target.classList.add('active-list');
+    videoSource.setAttribute("src", e.target.dataset.url);  // Update video source
+    video.load();
+  }
+</script>
+
   <script defer src="main.js"></script>
 </body>
 

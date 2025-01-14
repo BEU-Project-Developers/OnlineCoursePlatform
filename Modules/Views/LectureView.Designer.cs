@@ -44,8 +44,5 @@ namespace Prabesh_Academy.Modules.Views
             }
         }
         #endregion
-
-        private Panel playerPanel;
-        private Label playerPlaceholder;
     }
 }
