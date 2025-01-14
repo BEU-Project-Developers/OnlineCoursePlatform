@@ -81,6 +81,7 @@ namespace Prabesh_Academy.Modules.Views
                     // Make sure the paths are correctly set to the files
                     string parameters = $"?lecture_list={Uri.EscapeDataString(jsonString)}";
 
+                    MessageBox.Show(parameters);
                     if (File.Exists(htmlFilePath))
                     {
                         webView2.Source = new Uri($"file:///{htmlFilePath}{parameters}");

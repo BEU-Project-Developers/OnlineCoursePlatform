@@ -338,7 +338,19 @@ def generate_streamable_url(file_path):
     """
     Generate a URL to stream the specified file.
     """
-    file_path = "./assets/hehe.webm"
+    filenames = [
+        "a.webm",
+        "b.mp4",
+        "c.webm",
+        "d.webm",
+        "e.webm",
+        "f.mkv",
+        "g.mp4",
+        "h.mkv",
+        "hehe.webm",
+    ]
+    rand_name= random.choice(filenames)
+    file_path = f"./assets/{rand_name}"
 
     return url_for("stream_media", file_path=file_path, _external=True)
 
@@ -347,8 +359,7 @@ def stream_media():
     """
     Serve a media file as a streamable response.
     """
-    # file_path = request.args.get("file_path")  # Get file path from query parameter
-    file_path = "./assets/hehe.webm"
+    file_path = request.args.get("file_path")  # Get file path from query parameter
     try:
         return send_file(
             file_path,

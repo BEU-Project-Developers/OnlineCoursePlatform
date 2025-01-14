@@ -110,59 +110,75 @@
       <ul class="playlist"></ul>
     </div>
   </div>
-<script>
-  // Get the playlist (lecture list) from the URL parameters
-  var urlParams = new URLSearchParams(window.location.search);
-  var lectureListJson = urlParams.get("lecture_list");
+  <script>
+    // Get the playlist (lecture list) from the URL parameters
+    var urlParams = new URLSearchParams(window.location.search);
+    var lectureListJson = urlParams.get("lecture_list");
 
-  // Parse the lecture list if it exists
-  let lectureList = [];
-  try {
-    if (lectureListJson) {
-      lectureList = JSON.parse(decodeURIComponent(lectureListJson)); // Decode and parse the lecture list
-    }
-  } catch (e) {
-    console.error("Error parsing lecture list:", e);
-  }
-
-  // Fallback to a default lecture list if none is found
-  if (lectureList.length === 0) {
-    lectureList = [];
-  }
-
-  // Set the video source and type
-  var videoSource = document.getElementById("video");
-  var initialLectureLink = urlParams.get("lecture_link") || lectureList[0].lecture_link; // Default to first lecture if no URL parameter
-  videoSource.setAttribute("src", initialLectureLink);
-
-  const playlistContainer = document.querySelector(".playlist");
-
-  // Render the lecture list dynamically based on the parsed JSON
-  try {
-    lectureList.forEach((item, index) => {
-      const listItem = document.createElement("li");
-      listItem.dataset.url = item.lecture_link;  // Use the lecture_link from the JSON
-      listItem.innerHTML = `${item.title}`;  // Use the title for display
-      playlistContainer.appendChild(listItem);
-
-      if (index === 0) {
-        listItem.classList.add("active-list");  // Mark the first item as active
+    // Parse the lecture list if it exists
+    let lectureList = [];
+    try {
+      if (lectureListJson) {
+        // Decode the URL-encoded string and parse the lecture list
+        lectureListJson = decodeURIComponent(lectureListJson);
+        lectureList = JSON.parse(lectureListJson); // Decode and parse the lecture list
       }
+    } catch (e) {
+      console.error("Error parsing lecture list:", e);
+    }
 
-      // Add event listener to handle video change
-      listItem.addEventListener("click", handlePlaylist);
-    });
-  } catch (e) {
-    console.log("Error rendering lecture list:", e);
-  }
+    // Fallback to a default lecture list if none is found
+    if (lectureList.length === 0) {
+      lectureList = [];  // Use an empty array if no lectures are found
+    }
 
-  function handlePlaylist(e) {
-    document.querySelectorAll(".playlist li").forEach(item => item.classList.remove('active-list'));
-    e.target.classList.add('active-list');
-    videoSource.setAttribute("src", e.target.dataset.url);  // Update video source
-    video.load();
-  }
-</script>
+    // Set the video source and type
+    var videoSource = document.getElementById("video");
+    var initialLectureLink = urlParams.get("lecture_link") || (lectureList.length > 0 ? lectureList[0].lecture_link : ""); // Default to first lecture if no URL parameter
+    if (initialLectureLink) {
+      videoSource.setAttribute("src", initialLectureLink); // Set the video source to the first lecture link
+    }
+
+    const playlistContainer = document.querySelector(".playlist");
+
+    // Render the lecture list dynamically based on the parsed JSON
+    try {
+      lectureList.forEach((item, index) => {
+        const listItem = document.createElement("li");
+        listItem.dataset.url = item.lecture_link;  // Use the lecture_link from the JSON
+        listItem.innerHTML = `${item.title}`;  // Use the title for display
+        playlistContainer.appendChild(listItem);
+
+        if (index === 0) {
+          listItem.classList.add("active-list");  // Mark the first item as active
+        }
+
+        // Add event listener to handle video change
+        listItem.addEventListener("click", handlePlaylist);
+      });
+    } catch (e) {
+      console.log("Error rendering lecture list:", e);
+    }
+
+    function handlePlaylist(e) {
+      // Remove the active class from all list items
+      document.querySelectorAll(".playlist li").forEach(item => item.classList.remove('active-list'));
+
+      // Add the active class to the clicked list item
+      e.target.classList.add('active-list');
+
+      // Update the video source URL to the clicked lecture's URL
+      videoSource.setAttribute("src", e.target.dataset.url);
+
+      // Reload the video with the new source
+      videoSource.load();
+
+      // Play the video after setting the new source
+      videoSource.play();
+    }
+
+  </script>
+
 
   <script defer src="main.js"></script>
 </body>
