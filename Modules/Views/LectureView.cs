@@ -22,11 +22,15 @@ namespace Prabesh_Academy.Modules.Views
         private string ApiBaseUrl = ConfigurationManager.ConnectionStrings["ApiBaseUrl"].ConnectionString;
         string JWTtoken = TokenManager.JWTToken;
         private WebView2 webView2;
+        private Main mainforminst;
 
         public LectureView(Main mainFormInstance, int contentId)
         {
             if (mainFormInstance != null)
+            {
+                mainforminst = mainFormInstance;
                 mainFormInstance.Controls.Clear();
+            }
 
             this.Dock = DockStyle.Fill;
             this.contentId = contentId;
@@ -44,6 +48,7 @@ namespace Prabesh_Academy.Modules.Views
             InitializeWebView2Async();
         }
 
+
         private async void InitializeWebView2Async()
         {
             await webView2.EnsureCoreWebView2Async();
@@ -60,6 +65,8 @@ namespace Prabesh_Academy.Modules.Views
                 MessageBox.Show($"WebView2 initialization failed: {e.InitializationException?.Message}");
             }
         }
+
+
 
         private async Task LoadLectures()
         {
@@ -81,7 +88,7 @@ namespace Prabesh_Academy.Modules.Views
                     // Make sure the paths are correctly set to the files
                     string parameters = $"?lecture_list={Uri.EscapeDataString(jsonString)}";
 
-                    MessageBox.Show(parameters);
+                    //MessageBox.Show(parameters);
                     if (File.Exists(htmlFilePath))
                     {
                         webView2.Source = new Uri($"file:///{htmlFilePath}{parameters}");
