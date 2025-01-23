@@ -154,6 +154,7 @@ namespace Prabesh_Academy.Modules.Views
                                     BorderStyle = BorderStyle.None
                                 };
 
+                                courseCard.MouseClick += (s, e) => (this.ParentForm as Main).ShowLoginForm();
                                 // Add course content dynamically
                                 AddSimpleCourseContent(courseCard, courses[i]);
                                 mainPanel.Controls.Add(courseCard);

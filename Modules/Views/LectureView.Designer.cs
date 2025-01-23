@@ -35,30 +35,30 @@ namespace Prabesh_Academy.Modules.Views
         {
             try
             {
-                // Create and configure the back button
-                PictureBox backButton = new PictureBox
+                this.back_button = new System.Windows.Forms.Button();
+                this.back_button.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)));
+                this.back_button.Location = new System.Drawing.Point(10, 10);
+                this.back_button.Name = "back_button";
+                this.back_button.Size = new System.Drawing.Size(30, 30);
+                this.back_button.TabIndex = 1;
+                //this.back_button.UseVisualStyleBackColor = true;
+                this.back_button.Click += (s, e) =>
                 {
-                    Width = 64,
-                    Height = 64,
-                    Location = new System.Drawing.Point(10, 10), // Set position
-                    Cursor = Cursors.Hand,
-                    BackColor = System.Drawing.Color.Transparent,
-                    SizeMode = PictureBoxSizeMode.Zoom // Ensure the image scales to fit the PictureBox
-
+                    if (mainforminst != null && !mainforminst.IsDisposed)
+                    {
+                        mainforminst.Controls.Clear();
+                        Course_Home courseHome = new Course_Home(mainforminst); // Recreate Course_Home instance
+                        mainforminst.Controls.Add(courseHome);
+                    }
                 };
-
                 // Convert the SVG, svg already exists there as  into an image
-                backButton.Image = SvgToImage(backButton.Width,backButton.Height); // Implement SvgToImage conversion method
+                this.back_button.BackgroundImage = SvgToImage(30,30); // Implement SvgToImage conversion method
+                this.back_button.BackgroundImageLayout = ImageLayout.Stretch;
 
                 // Add a click event for the back button
-                backButton.Click += (s, e) =>
-                {
-                    MessageBox.Show("Back button clicked!", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    //this.Close(); // Navigate back or close the form
-                };
 
                 // Add the back button to the form
-                this.Controls.Add(backButton);
+                this.Controls.Add(back_button);
             }
             catch (Exception ex)
             {
@@ -85,6 +85,9 @@ namespace Prabesh_Academy.Modules.Views
                 return svgDoc.Draw();
             }
         }
+
+        private Button back_button;
+
     }
 
 }

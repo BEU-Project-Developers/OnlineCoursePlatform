@@ -435,6 +435,172 @@ def dynamic_home():
     # Return the courses as a JSON response
     return jsonify(courses_data)
 
+# Route for viewing or updating the active user
+@app.route("/activeUser", methods=["GET", "PUT"])
+@token_required
+def active_user():
+    try:
+        # Decode user ID from token
+        token = request.headers.get("Authorization").split(" ")[1]
+        decoded_token = jwt.decode(
+            token, app.config["SHHHH_CHUP"], algorithms=["HS256"]
+        )
+        user_id = decoded_token["user_id"]
+
+        conn = get_db_connection(DATABASE_CONFIG)
+        cursor = conn.cursor()
+
+        if request.method == "GET":
+            # Get the active user data
+            query = """
+                SELECT UserID, FirstName, LastName, Email, Username, PasswordHash, CreatedAt, UpdatedAt, Initialized, 
+                       SubscriptionStatus, CourseLevel, GroupLevel, ProfilePic, Bio
+                FROM dbo.Users
+                WHERE UserID = ?
+            """
+            cursor.execute(query, user_id)
+            user = cursor.fetchone()
+
+            if not user:
+                return jsonify({"error": "User not found"}), 404
+
+            user_data = {
+                "UserID": user.UserID,
+                "FirstName": user.FirstName,
+                "LastName": user.LastName,
+                "Email": user.Email,
+                "Username": user.Username,
+                "PasswordHash": user.PasswordHash,
+                "CreatedAt": user.CreatedAt,
+                "UpdatedAt": user.UpdatedAt,
+                "Initialized": user.Initialized,
+                "SubscriptionStatus": user.SubscriptionStatus,
+                "CourseLevel": user.CourseLevel,
+                "GroupLevel": user.GroupLevel,
+                "ProfilePic": user.ProfilePic,
+                "Bio": user.Bio,
+            }
+
+            return jsonify(user_data)
+
+        elif request.method == "PUT":
+            # Get the current user data
+            query = """
+                SELECT FirstName, LastName, Email, Username, PasswordHash, Initialized, SubscriptionStatus, 
+                       CourseLevel, GroupLevel, ProfilePic, Bio
+                FROM dbo.Users
+                WHERE UserID = ?
+            """
+            cursor.execute(query, user_id)
+            current_user = cursor.fetchone()
+
+            if not current_user:
+                return jsonify({"error": "User not found"}), 404
+
+            # Get updated data from the request
+            data = request.get_json()
+            updated_data = {
+                "FirstName": data.get("FirstName", current_user.FirstName),
+                "LastName": data.get("LastName", current_user.LastName),
+                "Email": data.get("Email", current_user.Email),
+                "Username": data.get("Username", current_user.Username),
+                "PasswordHash": data.get("PasswordHash", current_user.PasswordHash),
+                "Initialized": data.get("Initialized", current_user.Initialized),
+                "SubscriptionStatus": data.get(
+                    "SubscriptionStatus", current_user.SubscriptionStatus
+                ),
+                "CourseLevel": data.get("CourseLevel", current_user.CourseLevel),
+                "GroupLevel": data.get("GroupLevel", current_user.GroupLevel),
+                "ProfilePic": data.get("ProfilePic", current_user.ProfilePic),
+                "Bio": data.get("Bio", current_user.Bio),
+            }
+
+            # Update query
+            update_query = """
+                UPDATE dbo.Users
+                SET FirstName = ?, LastName = ?, Email = ?, Username = ?, PasswordHash = ?, Initialized = ?,
+                    SubscriptionStatus = ?, CourseLevel = ?, GroupLevel = ?, ProfilePic = ?, Bio = ?, UpdatedAt = GETDATE()
+                WHERE UserID = ?
+            """
+
+            cursor.execute(
+                update_query,
+                updated_data["FirstName"],
+                updated_data["LastName"],
+                updated_data["Email"],
+                updated_data["Username"],
+                updated_data["PasswordHash"],
+                updated_data["Initialized"],
+                updated_data["SubscriptionStatus"],
+                updated_data["CourseLevel"],
+                updated_data["GroupLevel"],
+                updated_data["ProfilePic"],
+                updated_data["Bio"],
+                user_id,
+            )
+
+            conn.commit()
+
+            return jsonify({"message": "User updated successfully"})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
+
+# Route for getting available levels and course groups
+@app.route("/availableLevelsAndGroups", methods=["GET"])
+@token_required
+def get_available_levels_and_groups():
+    try:
+        conn = get_db_connection(COURSES_DATABASE_CONFIG)
+        cursor = conn.cursor()
+
+        # Query for educational levels
+        levels_query = """
+            SELECT level_id, level_name, Graphic
+            FROM dbo.EducationalLevels
+        """
+        cursor.execute(levels_query)
+        levels = cursor.fetchall()
+
+        # Query for course groups
+        groups_query = """
+            SELECT group_id, group_name, Graphic
+            FROM dbo.CourseGroups
+        """
+        cursor.execute(groups_query)
+        groups = cursor.fetchall()
+
+        levels_data = [
+            {
+                "level_id": level.level_id,
+                "level_name": level.level_name,
+                "Graphic": level.Graphic,
+            }
+            for level in levels
+        ]
+
+        groups_data = [
+            {
+                "group_id": group.group_id,
+                "group_name": group.group_name,
+                "Graphic": group.Graphic,
+            }
+            for group in groups
+        ]
+
+        return jsonify(
+            {"educational_levels": levels_data, "course_groups": groups_data}
+        )
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    finally:
+        conn.close()
+
 
 if __name__ == "__main__":
     app.run(debug=True)
