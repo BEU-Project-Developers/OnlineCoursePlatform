@@ -13,6 +13,7 @@ using Prabesh_Academy.Modules.Authentication;
 using Svg;
 using System.IO;
 using Newtonsoft.Json.Linq;
+using Prabesh_Academy.Modules.Forms;
 
 namespace Prabesh_Academy.Modules.Views
 {
@@ -27,6 +28,7 @@ namespace Prabesh_Academy.Modules.Views
         public Course_Home(Main mainFormArg)
         {
             mainFormInstance = mainFormArg;
+            this.Controls.Clear();
             InitializeComponent();
             this.Dock = DockStyle.Fill;
 
@@ -34,8 +36,72 @@ namespace Prabesh_Academy.Modules.Views
             _jwtToken = TokenManager.JWTToken;
 
             LoadBackButtonImage();
-            LoadAvailableCourses();
+            //LoadAvailableCourses();
+            CheckUserInitialization(); // Call the new method to check user initialization
+
         }
+
+
+        private async void CheckUserInitialization()
+        {
+            if (string.IsNullOrEmpty(_apiBaseUrl))
+            {
+                MessageBox.Show("API Base URL is not configured.", "Configuration Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            if (string.IsNullOrEmpty(_jwtToken))
+            {
+                MessageBox.Show("JWT Token is missing. Please login.", "Authentication Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var client = new HttpClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _jwtToken);
+
+            try
+            {
+                var response = await client.GetAsync($"{_apiBaseUrl}/activeUser"); // Call /activeUser endpoint
+                response.EnsureSuccessStatusCode();
+                var jsonString = await response.Content.ReadAsStringAsync();
+                var userProfile = JsonConvert.DeserializeObject<UserProfile>(jsonString); // Deserialize to UserProfile class
+
+                if (userProfile != null && !userProfile.Initialized)
+                {
+                    // User is NOT initialized, show initMyProfile form
+                    this.Controls.Clear();
+                    ShowInitMyProfileForm(userProfile);
+                }
+                else
+                {
+                    // User IS initialized, load courses as usual
+                    LoadAvailableCourses();
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                MessageBox.Show($"Error communicating with the API (activeUser): {ex.Message}", "API Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (JsonException ex)
+            {
+                MessageBox.Show($"Error parsing API response (activeUser): {ex.Message}", "JSON Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"An unexpected error occurred (activeUser): {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        }
+
+        private void ShowInitMyProfileForm(UserProfile userProfile)
+        {
+            // **Important:** Make sure you have a form named `initMyProfile` in your `Prabesh_Academy.Modules.Views` namespace.
+            //                If it's named differently or in a different namespace, adjust accordingly.
+
+            initMyProfile initProfileForm = new initMyProfile(mainFormInstance, userProfile); // Assuming your initMyProfile constructor takes 'Main' as argument
+            mainFormInstance.Controls.Clear(); // Clear existing controls in MainForm
+            mainFormInstance.Controls.Add(initProfileForm); // Add the initMyProfile form
+        }
+
 
         protected override void OnLoad(EventArgs e)
         {
@@ -452,5 +518,25 @@ namespace Prabesh_Academy.Modules.Views
         {
             return this.MemberwiseClone();
         }
+
     }
+
+    public class UserProfile
+    {
+        public string Bio { get; set; }
+        public string CourseLevel { get; set; }
+        public DateTime? CreatedAt { get; set; } // Use DateTime? for nullable DateTime
+        public string Email { get; set; }
+        public string FirstName { get; set; }
+        public string GroupLevel { get; set; }
+        public bool Initialized { get; set; }
+        public string LastName { get; set; }
+        public string PasswordHash { get; set; }
+        public string ProfilePic { get; set; }
+        public string SubscriptionStatus { get; set; }
+        public DateTime? UpdatedAt { get; set; } // Use DateTime? for nullable DateTime
+        public int UserID { get; set; }
+        public string Username { get; set; }
+    }
+
 }

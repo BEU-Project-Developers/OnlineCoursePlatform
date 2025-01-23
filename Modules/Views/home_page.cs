@@ -154,6 +154,14 @@ namespace Prabesh_Academy.Modules.Views
                                     BorderStyle = BorderStyle.None
                                 };
 
+                                // Add this line back to navigate to login page on card click
+                                courseCard.MouseEnter += (s, e) =>
+                                                               {
+                                    courseCard.Cursor = Cursors.Hand; // Change cursor to hand on hover
+                                                                   };
+                                courseCard.MouseLeave += (s, e) => courseCard.Cursor = Cursors.Default; // Change cursor to default on leave
+                                
+
                                 courseCard.MouseClick += (s, e) => (this.ParentForm as Main).ShowLoginForm();
                                 // Add course content dynamically
                                 AddSimpleCourseContent(courseCard, courses[i]);

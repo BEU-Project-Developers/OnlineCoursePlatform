@@ -10,7 +10,7 @@ namespace Prabesh_Academy
         private LoginForm loginForm;
         private home_page homepage; // Declare homepage here
         private SignupForm signupForm; // Add SignupForm field
-        private Course_Home courseHome; // Replace homepage with Course_Home
+        public Course_Home courseHome; // Replace homepage with Course_Home
 
         public Main()
         {

@@ -155,6 +155,7 @@ def signup():
 @app.route("/allAvailableCourses", methods=["GET"])
 @token_required
 def get_all_available_courses():
+    
     level_id = request.args.get("level_id", type=int)
     group_id = request.args.get("group_id", type=int)
     course_id = request.args.get("course_id", type=int)
