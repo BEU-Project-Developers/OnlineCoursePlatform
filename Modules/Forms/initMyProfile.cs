@@ -244,7 +244,7 @@ namespace Prabesh_Academy.Modules.Forms
 
                     if (response.IsSuccessStatusCode)
                     {
-                        MessageBox.Show("Subscribed to plan! \n Redirecting to your course", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        //MessageBox.Show("Subscribed to plan! \n Redirecting to your course", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         _mainForm.Controls.Clear();
                         _mainForm.courseHome = null;
                         _mainForm.LoadCourseHome();

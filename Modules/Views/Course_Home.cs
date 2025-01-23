@@ -500,7 +500,7 @@ namespace Prabesh_Academy.Modules.Views
 
         private async void user_button_Click(object sender, EventArgs e)
         {
-            MessageBox.Show("Your profile is on way...");
+            //MessageBox.Show("Your profile is on way...");
             ProfileViewer hehe = new ProfileViewer();
             hehe.Show();
         }

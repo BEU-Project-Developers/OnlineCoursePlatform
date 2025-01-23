@@ -46,6 +46,7 @@ namespace Prabesh_Academy.Modules.Views
                 {
                     if (mainforminst != null && !mainforminst.IsDisposed)
                     {
+                        webView2.Dispose();
                         mainforminst.Controls.Clear();
                         Course_Home courseHome = new Course_Home(mainforminst); // Recreate Course_Home instance
                         mainforminst.Controls.Add(courseHome);
