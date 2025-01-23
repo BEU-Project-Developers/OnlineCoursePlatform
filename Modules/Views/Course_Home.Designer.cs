@@ -39,6 +39,7 @@ namespace Prabesh_Academy.Modules.Views
             this.home_button = new System.Windows.Forms.Button();
             this.refresh_button = new System.Windows.Forms.Button();
             this.logout_button = new System.Windows.Forms.Button();
+            this.user_button = new System.Windows.Forms.Button();
 
 
             this.SuspendLayout();
@@ -89,6 +90,15 @@ namespace Prabesh_Academy.Modules.Views
             this.logout_button.Click+=logout_button_Click;
             // 
 
+            this.user_button.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)));
+            this.user_button.Location = new System.Drawing.Point(160, 10);
+            this.user_button.Name = "back_button";
+            this.user_button.Size = new System.Drawing.Size(30, 30);
+            this.user_button.TabIndex = 1;
+            this.user_button.UseVisualStyleBackColor = true;
+            this.user_button.Click += user_button_Click;
+
+
             // Course_Home
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -98,6 +108,7 @@ namespace Prabesh_Academy.Modules.Views
             this.Controls.Add(this.home_button);
             this.Controls.Add(this.refresh_button);
             this.Controls.Add(this.logout_button);
+            this.Controls.Add(this.user_button);
 
             this.Controls.Add(this.flowLayoutPanel1);
             this.Name = "Course_Home";
@@ -115,6 +126,7 @@ namespace Prabesh_Academy.Modules.Views
         private Button home_button;
         private Button refresh_button;
         private Button logout_button;
+        private Button user_button;
 
 
     }
