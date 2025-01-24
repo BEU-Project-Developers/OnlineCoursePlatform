@@ -157,7 +157,7 @@ namespace Prabesh_Academy.Modules.Views
 
         private async void refresh_button_Click(object sender, EventArgs e)
         {
-            await LoadAvailableCourses(_currentState.LevelId, _currentState.GroupId, _currentState.CourseId, _currentState.SubjectId, _currentState.ParentId);
+            await LoadAvailableCourses(_currentState.CourseId, _currentState.SubjectId, _currentState.ParentId); // Refresh current view, parameters taken from currentState.
         }
 
         private async void logout_button_Click(object sender, EventArgs e)
@@ -178,7 +178,7 @@ namespace Prabesh_Academy.Modules.Views
             }
         }
 
-        private async Task LoadAvailableCourses(int? levelId = null, int? groupId = null, int? courseId = null, int? subjectId = null, int? parentId = null)
+        private async Task LoadAvailableCourses(int? courseId = null, int? subjectId = null, int? parentId = null)
         {
             if (string.IsNullOrEmpty(_apiBaseUrl))
             {
@@ -193,8 +193,6 @@ namespace Prabesh_Academy.Modules.Views
             }
 
             flowLayoutPanel1.Controls.Clear();
-            _currentState.LevelId = levelId;
-            _currentState.GroupId = groupId;
             _currentState.CourseId = courseId;
             _currentState.SubjectId = subjectId;
             _currentState.ParentId = parentId;
@@ -205,11 +203,17 @@ namespace Prabesh_Academy.Modules.Views
             string url = $"{_apiBaseUrl}/allAvailableCourses";
             var queryParams = new Dictionary<string, string>();
 
-            if (levelId.HasValue) queryParams.Add("level_id", levelId.Value.ToString());
-            if (groupId.HasValue && levelId.HasValue) queryParams.Add("group_id", groupId.Value.ToString());
-            if (courseId.HasValue && groupId.HasValue && levelId.HasValue) queryParams.Add("course_id", courseId.Value.ToString());
-            if (subjectId.HasValue && courseId.HasValue && groupId.HasValue && levelId.HasValue) queryParams.Add("subject_id", subjectId.Value.ToString());
-            if (parentId.HasValue && subjectId.HasValue && courseId.HasValue && groupId.HasValue && levelId.HasValue) queryParams.Add("parent_id", parentId.Value.ToString());
+            // Retrieve LevelId and GroupId from User Profile (if needed in backend -  check backend logic)
+            int? levelIdFromProfile = null; // You need to fetch this from your UserProfile, if you still need to filter by level.
+            int? groupIdFromProfile = null; // You need to fetch this from your UserProfile, if you still need to filter by group.
+                                            // **Important:** You'll need to modify `CheckUserInitialization` to store userProfile more globally or fetch it here again if you intend to use LevelId and GroupId from profile. For now, let's assume we want to try *without* explicitly passing level and group if possible and backend is flexible enough.
+
+            // if (levelId.HasValue) queryParams.Add("level_id", levelId.Value.ToString()); // No longer explicitly passing levelId from NavState parameter
+            // if (groupId.HasValue && levelId.HasValue) queryParams.Add("group_id", groupId.Value.ToString()); // No longer explicitly passing groupId from NavState parameter
+            if (courseId.HasValue) queryParams.Add("course_id", courseId.Value.ToString());
+            if (subjectId.HasValue && courseId.HasValue) queryParams.Add("subject_id", subjectId.Value.ToString());
+            if (parentId.HasValue && subjectId.HasValue && courseId.HasValue) queryParams.Add("parent_id", parentId.Value.ToString());
+
 
             if (queryParams.Any())
             {
@@ -231,20 +235,20 @@ namespace Prabesh_Academy.Modules.Views
                     {
                         //if (items.Count == 1 && levelId.HasValue == parentId.HasValue) // Check to prevent infinite loops, but it was useless maybe.
 
-                            var item = items[0];
+                        var item = items[0];
                         switch (item.type.ToLower())
                         {
-                            case "level":
-                                await LoadAvailableCourses(levelId: item.id);
+                            case "level": // Keep if levels are still relevant initial level selection -  but navigation won't explicitly track LevelId anymore
+                                await LoadAvailableCourses(courseId: item.id); // Changed from levelId to courseId to match NavState and likely backend behavior.
                                 break;
-                            case "group":
-                                await LoadAvailableCourses(levelId: _currentState.LevelId, groupId: item.id);
+                            case "group":  // Keep if groups are still relevant initial group selection- but navigation won't explicitly track GroupId anymore
+                                await LoadAvailableCourses(courseId: item.id); // Changed from groupId to courseId. Adapt as per backend if group -> course is logical.
                                 break;
                             case "course":
-                                await LoadAvailableCourses(levelId: _currentState.LevelId, groupId: _currentState.GroupId, courseId: item.id);
+                                await LoadAvailableCourses(courseId: item.id); // Stay with courseId navigation.
                                 break;
                             case "subject":
-                                await LoadAvailableCourses(levelId: _currentState.LevelId, groupId: _currentState.GroupId, courseId: _currentState.CourseId, subjectId: item.id);
+                                await LoadAvailableCourses(courseId: _currentState.CourseId, subjectId: item.id); // Keep SubjectId, courseId.
                                 break;
                                 // Consider if similar direct navigation is needed for content
                         }
@@ -379,17 +383,17 @@ namespace Prabesh_Academy.Modules.Views
 
                 switch (type)
                 {
-                    case "level":
-                        await LoadAvailableCourses(levelId: id);
+                    case "level": // Keep if levels are still starting point. Navigation parameter change.
+                        await LoadAvailableCourses(courseId: id); // Changed from levelId to courseId.
                         break;
-                    case "group":
-                        await LoadAvailableCourses(levelId: _currentState.LevelId, groupId: id);
+                    case "group": // Keep if groups are still starting point. Navigation parameter change.
+                        await LoadAvailableCourses(courseId: id); // Changed from groupId to courseId. Adapt if group -> course is different.
                         break;
                     case "course":
-                        await LoadAvailableCourses(levelId: _currentState.LevelId, groupId: _currentState.GroupId, courseId: id);
+                        await LoadAvailableCourses(courseId: id); // Stay with courseId.
                         break;
                     case "subject":
-                        await LoadAvailableCourses(_currentState.LevelId, _currentState.GroupId, _currentState.CourseId, subjectId: id);
+                        await LoadAvailableCourses(courseId: _currentState.CourseId, subjectId: id); // Keep subjectId, courseId context.
                         break;
                     case "content":
                         if (!tagInfo.ContainsChildren)
@@ -407,16 +411,15 @@ namespace Prabesh_Academy.Modules.Views
                         }
                         else
                         {
-                            await LoadContentChildren(_currentState.SubjectId.Value, id);
+                            await LoadContentChildren(_currentState.SubjectId.Value, id); // Keep subjectId for loading content children.
                         }
                         break;
                 }
             }
         }
-
         private async Task ShowSubjectDetails(int subjectId)
         {
-            await LoadAvailableCourses(_currentState.LevelId, _currentState.GroupId, _currentState.CourseId, subjectId: subjectId);
+            await LoadAvailableCourses(_currentState.CourseId, subjectId: subjectId);
         }
 
         private async Task LoadContentChildren(int subjectId, int? parentId)
@@ -428,7 +431,7 @@ namespace Prabesh_Academy.Modules.Views
             var client = new HttpClient();
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _jwtToken);
 
-            string url = $"{_apiBaseUrl}/allAvailableCourses?level_id={_currentState.LevelId}&group_id={_currentState.GroupId}&course_id={_currentState.CourseId}&subject_id={subjectId}";
+            string url = $"{_apiBaseUrl}/allAvailableCourses?course_id={_currentState.CourseId}&subject_id={subjectId}";
             if (parentId.HasValue)
             {
                 url += $"&parent_id={parentId.Value}";
@@ -489,9 +492,7 @@ namespace Prabesh_Academy.Modules.Views
             {
                 var previousState = _navigationHistory.Pop();
                 await LoadAvailableCourses(
-                    previousState.LevelId,
-                    previousState.GroupId,
-                    previousState.CourseId,
+                    previousState.CourseId, // Removed LevelId and GroupId
                     previousState.SubjectId,
                     previousState.ParentId
                 );
@@ -521,17 +522,15 @@ namespace Prabesh_Academy.Modules.Views
 
     public class NavigationState : ICloneable
     {
-        public int? LevelId { get; set; }
-        public int? GroupId { get; set; }
+        // Removed LevelId and GroupId
         public int? CourseId { get; set; }
         public int? SubjectId { get; set; }
-        public int? ParentId { get; set; }
+        public int? ParentId { get; set; } // Keep parent ID for hierarchical content navigation
 
         public object Clone()
         {
             return this.MemberwiseClone();
         }
-
     }
 
     public class UserProfile

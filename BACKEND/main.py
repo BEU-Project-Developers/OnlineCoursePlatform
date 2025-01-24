@@ -9,9 +9,8 @@ from functools import wraps
 
 
 app = Flask(__name__)
-app.config["SHHHH_CHUP"] = "prabe.sh"  # Replace with a strong secret key
+app.config["SHHHH_CHUP"] = "prabe.sh"
 
-# Database connection strings
 DATABASE_CONFIG = {
     "DRIVER": "{ODBC Driver 17 for SQL Server}",
     "SERVER": "MY2NDGF",
@@ -28,6 +27,7 @@ COURSES_DATABASE_CONFIG = {
 
 
 def get_db_connection(database_config):
+    conn = None
     try:
         conn = pyodbc.connect(
             f"DRIVER={database_config['DRIVER']};"
@@ -36,45 +36,69 @@ def get_db_connection(database_config):
             f"Trusted_Connection={database_config['Trusted_Connection']};"
         )
         return conn
+    except pyodbc.Error as ex:
+        sqlstate = ex.args[0]
+        if sqlstate == "28000":
+            print("Database login failed")
+            return None  # or raise exception, handle as needed
+        else:
+            print(f"Database connection error: {ex}")
+            return None  # or raise exception, handle as needed
     except Exception as e:
-        print(f"Database connection error: {e}")
-        raise
+        print(f"General database connection error: {e}")
+        return None  # or raise exception, handle as needed
 
-# Authentication decorator
+
 def token_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         token = None
+        auth_header = request.headers.get("Authorization")
 
-        if "Authorization" in request.headers:
-            token = request.headers["Authorization"].split(" ")[1]
+        if not auth_header:
+            return jsonify({"error": "Token is missing!"}), 401
+
+        try:
+            token_parts = auth_header.split()
+            if len(token_parts) != 2 or token_parts[0].lower() != "bearer":
+                return jsonify({"error": "Invalid token format!"}), 401
+            token = token_parts[1]
+        except Exception:
+            return jsonify({"error": "Invalid authorization header!"}), 401
 
         if not token:
             return jsonify({"error": "Token is missing!"}), 401
 
         try:
             jwt.decode(token, app.config["SHHHH_CHUP"], algorithms=["HS256"])
-        except:
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "Token has expired!"}), 401
+        except jwt.InvalidTokenError:
             return jsonify({"error": "Token is invalid!"}), 401
+        except Exception as e:
+            return jsonify({"error": f"Token verification failed: {str(e)}"}), 401
 
         return f(*args, **kwargs)
 
     return decorated
 
 
-# Login endpoint
 @app.route("/login", methods=["POST"])
 def login():
     data = request.json
-    username_or_email = data["username_or_email"]
-    password = data["password"]
+    if not data or "username_or_email" not in data or "password" not in data:
+        return jsonify({"error": "Missing username_or_email or password"}), 400
 
+    username_or_email = data.get("username_or_email")
+    password = data.get("password")
+
+    conn = None
     try:
-        # Connect to the database
         conn = get_db_connection(DATABASE_CONFIG)
+        if not conn:
+            return jsonify({"error": "Database connection failed"}), 500
         cursor = conn.cursor()
 
-        # Query to retrieve the stored password hash
         query = """
         SELECT UserId, PasswordHash FROM Users
         WHERE Username = ? OR Email = ?
@@ -84,9 +108,7 @@ def login():
 
         if result:
             user_id, stored_password_hash = result
-            # Compare the entered password with the stored hash
             if check_password_hash(stored_password_hash, password):
-                # Generate JWT
                 token = jwt.encode(
                     {
                         "user_id": user_id,
@@ -102,26 +124,34 @@ def login():
         else:
             return jsonify({"error": "Invalid username/email or password"}), 401
     except Exception as e:
-        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+        print(f"Login error: {e}")  # Log the error for debugging
+        return jsonify({"error": "Login failed"}), 500  # Generic error to user
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
-# Signup endpoint
+
 @app.route("/signup", methods=["POST"])
 def signup():
     data = request.json
-    first_name = data["first_name"]
-    last_name = data["last_name"]
-    email = data["email"]
-    username = data["username"]
-    password = data["password"]
+    required_fields = ["first_name", "last_name", "email", "username", "password"]
+    if not data or not all(field in data for field in required_fields):
+        return jsonify({"error": "Missing required fields"}), 400
 
+    first_name = data.get("first_name")
+    last_name = data.get("last_name")
+    email = data.get("email")
+    username = data.get("username")
+    password = data.get("password")
+
+    conn = None
     try:
-        # Connect to the database
         conn = get_db_connection(DATABASE_CONFIG)
+        if conn is None:
+            return jsonify({"error": "Database connection failed"}), 500
+
         cursor = conn.cursor()
 
-        # Check if the username or email already exists
         check_query = """
         SELECT COUNT(*) FROM Users
         WHERE Username = ? OR Email = ?
@@ -132,10 +162,8 @@ def signup():
         if user_count > 0:
             return jsonify({"error": "Username or email already exists"}), 409
 
-        # Hash the password
         hashed_password = generate_password_hash(password)
 
-        # Insert the new user
         insert_query = """
         INSERT INTO Users (FirstName, LastName, Email, Username, PasswordHash)
         VALUES (?, ?, ?, ?, ?)
@@ -146,24 +174,171 @@ def signup():
         conn.commit()
 
         return jsonify({"message": "Signup successful"}), 201
+    except pyodbc.IntegrityError as e:
+        if "Violation of UNIQUE KEY constraint" in str(e):
+            return jsonify({"error": "Username or email already exists"}), 409
+        else:
+            print(f"Signup database error: {e}")  # Log specific DB error
+            return jsonify({"error": "Signup failed due to database error"}), 500
     except Exception as e:
-        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+        print(f"Signup error: {e}")  # Log general error
+        return jsonify({"error": "Signup failed"}), 500
     finally:
-        conn.close()
+        if conn:
+            conn.close()
+
+
+def get_courses_db_connection(database_config):
+    conn = None
+    try:
+        conn = pyodbc.connect(
+            f"DRIVER={database_config['DRIVER']};"
+            f"SERVER={database_config['SERVER']};"
+            f"DATABASE={database_config['DATABASE']};"
+            f"Trusted_Connection={database_config['Trusted_Connection']};"
+        )
+        return conn
+    except pyodbc.Error as ex:
+        sqlstate = ex.args[0]
+        if sqlstate == "28000":
+            print("Courses DB login failed")
+            return None
+        else:
+            print(f"Courses DB connection error: {ex}")
+            return None
+    except Exception as e:
+        print(f"General Courses DB connection error: {e}")
+        return None
+
+
+def extract_ids_from_levels(
+    token,
+):
+    course_level_string = None
+    group_level_string = None
+    course_level_id = None
+    group_id = None
+    user_id = None
+    user_conn = None
+    user_cursor = None
+    courses_conn = None
+    courses_cursor = None
+
+    try:
+        decoded_token = jwt.decode(
+            token,
+            app.config["SHHHH_CHUP"],
+            algorithms=["HS256"],
+        )
+        user_id = decoded_token["user_id"]
+
+        user_conn = get_db_connection(DATABASE_CONFIG)
+        if not user_conn:
+            print("Error connecting to user database in extract_ids")
+            return None, None
+
+        user_cursor = user_conn.cursor()
+
+        user_query = """
+            SELECT CourseLevel, GroupLevel
+            FROM dbo.Users
+            WHERE UserID = ?
+        """
+        user_cursor.execute(user_query, (user_id,))
+        user_data = user_cursor.fetchone()
+
+        if user_data:
+            course_level_string = user_data[0]
+            group_level_string = user_data[1]
+
+        courses_conn = get_courses_db_connection(
+            COURSES_DATABASE_CONFIG
+        )  # Corrected function call
+        if not courses_conn:
+            print("Error connecting to courses database in extract_ids")
+            return None, None
+        courses_cursor = courses_conn.cursor()
+
+        level_query = """
+            SELECT level_id
+            FROM dbo.EducationalLevels
+            WHERE level_name = ?
+        """
+        courses_cursor.execute(level_query, (course_level_string,))
+        level_data = courses_cursor.fetchone()
+        if level_data:
+            course_level_id = level_data[0]
+
+        group_query = """
+            SELECT group_id
+            FROM dbo.CourseGroups
+            WHERE group_name = ?
+        """
+        courses_cursor.execute(group_query, (group_level_string,))
+        group_data = courses_cursor.fetchone()
+        if group_data:
+            group_id = group_data[0]
+
+    except jwt.ExpiredSignatureError:
+        print("Token has expired in extract_ids")
+    except jwt.InvalidTokenError:
+        print("Invalid token in extract_ids")
+    except Exception as e:
+        print(f"Error in extract_ids_from_levels: {e}")
+    finally:
+        if user_cursor:
+            user_cursor.close()
+        if user_conn:
+            user_conn.close()
+        if courses_cursor:
+            courses_cursor.close()
+        if courses_conn:
+            courses_conn.close()
+
+    return course_level_id, group_id
 
 
 @app.route("/allAvailableCourses", methods=["GET"])
 @token_required
 def get_all_available_courses():
-    
-    level_id = request.args.get("level_id", type=int)
-    group_id = request.args.get("group_id", type=int)
-    course_id = request.args.get("course_id", type=int)
-    subject_id = request.args.get("subject_id", type=int)
-    parent_id = request.args.get("parent_id", type=int)
-
+    token = None
     try:
-        conn = get_db_connection(COURSES_DATABASE_CONFIG)
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return jsonify({"error": "Authorization header missing"}), 401
+        token_parts = auth_header.split()
+        if len(token_parts) != 2 or token_parts[0].lower() != "bearer":
+            return jsonify({"error": "Invalid token format"}), 401
+        token = token_parts[1]
+    except Exception as e:
+        return jsonify({"error": f"Error extracting token: {str(e)}"}), 400
+
+    level_id, group_id = extract_ids_from_levels(token)
+    if (
+        level_id is None
+        and group_id is None
+        and request.args.get("level_id") is None
+        and request.args.get("group_id") is None
+        and request.args.get("course_id") is None
+        and request.args.get("subject_id") is None
+        and request.args.get("parent_id") is None
+    ):
+        pass  # allow to fetch top level if no params are given either from token or URL params
+    else:
+        level_id_param = request.args.get("level_id", type=int)
+        group_id_param = request.args.get("group_id", type=int)
+        course_id = request.args.get("course_id", type=int)
+        subject_id = request.args.get("subject_id", type=int)
+        parent_id = request.args.get("parent_id", type=int)
+
+        level_id = level_id_param if level_id_param is not None else level_id
+        group_id = group_id_param if group_id_param is not None else group_id
+
+    conn = None
+    try:
+        conn = get_courses_db_connection(COURSES_DATABASE_CONFIG)
+        if not conn:
+            return jsonify({"error": "Failed to connect to courses database"}), 500
         cursor = conn.cursor()
 
         if (
@@ -173,7 +348,6 @@ def get_all_available_courses():
             and subject_id is None
             and parent_id is None
         ):
-            # Fetch Educational Levels
             query = "SELECT level_id, level_name, graphic FROM EducationalLevels"
             cursor.execute(query)
             levels = cursor.fetchall()
@@ -183,8 +357,8 @@ def get_all_available_courses():
                     "type": "level",
                     "id": level[0],
                     "name": level[1],
-                    "svg": level[2],  # Extracting 'Graphic' column
-                    "progress": random.randint(1, 100),  # Random progress value
+                    "svg": level[2],
+                    "progress": random.randint(1, 100),
                 }
                 for level in levels
             ]
@@ -197,7 +371,6 @@ def get_all_available_courses():
             and subject_id is None
             and parent_id is None
         ):
-            # Fetch Groups for a level
             query = "SELECT group_id, map_description, graphic FROM EducationalLevel_CoursesMapping WHERE level_id = ?"
             cursor.execute(query, level_id)
             groups = cursor.fetchall()
@@ -206,8 +379,8 @@ def get_all_available_courses():
                     "type": "group",
                     "id": group[0],
                     "name": group[1],
-                    "svg": group[2],  # Extracting 'Graphic' column
-                    "progress": random.randint(1, 100),  # Random progress value
+                    "svg": group[2],
+                    "progress": random.randint(1, 100),
                 }
                 for group in groups
             ]
@@ -220,11 +393,10 @@ def get_all_available_courses():
             and subject_id is None
             and parent_id is None
         ):
-            # Fetch Courses for a group
             query = """
-                SELECT Courses.course_id, Courses.course_name, Courses.graphic 
-                FROM Courses 
-                INNER JOIN CourseMapping ON Courses.course_id = CourseMapping.course_id 
+                SELECT Courses.course_id, Courses.course_name, Courses.graphic
+                FROM Courses
+                INNER JOIN CourseMapping ON Courses.course_id = CourseMapping.course_id
                 WHERE CourseMapping.group_id = ?
             """
             cursor.execute(query, group_id)
@@ -234,8 +406,8 @@ def get_all_available_courses():
                     "type": "course",
                     "id": course[0],
                     "name": course[1],
-                    "svg": course[2],  # Extracting 'Graphic' column
-                    "progress": random.randint(1, 100),  # Random progress value
+                    "svg": course[2],
+                    "progress": random.randint(1, 100),
                 }
                 for course in courses
             ]
@@ -248,7 +420,6 @@ def get_all_available_courses():
             and subject_id is None
             and parent_id is None
         ):
-            # Fetch subjects or single subject id
             query_check_subjects = (
                 "SELECT COUNT(*) FROM SubjectCourseMappings WHERE course_id = ?"
             )
@@ -268,8 +439,8 @@ def get_all_available_courses():
                     "id": subject[0],
                     "name": subject[1],
                     "description": subject[2],
-                    "svg": subject[3],  # Extracting 'Graphic' column
-                    "progress": random.randint(1, 100),  # Random progress value
+                    "svg": subject[3],
+                    "progress": random.randint(1, 100),
                 }
                 for subject in subjects
             ]
@@ -282,7 +453,6 @@ def get_all_available_courses():
             and course_id is not None
             and subject_id is not None
         ):
-            # Fetch Hierarchical Content for a subject
             query = """
                 SELECT content_id, content_name, parent_id, graphic
                 FROM HierarchicalContent
@@ -304,12 +474,12 @@ def get_all_available_courses():
                     if content[2] is None:
                         content_list.append(
                             {
-                                "type":"content",
+                                "type": "content",
                                 "id": content[0],
                                 "name": content[1],
                                 "parent_id": content[2],
-                                "svg": content[3],  # Extracting 'Graphic' column
-                                "progress": random.randint(1, 100),  # Random progress value
+                                "svg": content[3],
+                                "progress": random.randint(1, 100),
                                 "containsChildren": has_children,
                             }
                         )
@@ -320,8 +490,8 @@ def get_all_available_courses():
                             "id": content[0],
                             "name": content[1],
                             "parent_id": content[2],
-                            "svg": content[3],  # Extracting 'Graphic' column
-                            "progress": random.randint(1, 100),  # Random progress value
+                            "svg": content[3],
+                            "progress": random.randint(1, 100),
                             "containsChildren": has_children,
                         }
                     )
@@ -331,14 +501,14 @@ def get_all_available_courses():
             return jsonify({"error": "Invalid request parameters"}), 400
 
     except Exception as e:
-        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+        print(f"Error in get_all_available_courses: {e}")  # Log the error
+        return jsonify({"error": "Failed to fetch courses"}), 500
     finally:
-        conn.close()
+        if conn:
+            conn.close()
+
 
 def generate_streamable_url(file_path):
-    """
-    Generate a URL to stream the specified file.
-    """
     filenames = [
         "a.webm",
         "b.mp4",
@@ -350,33 +520,39 @@ def generate_streamable_url(file_path):
         "h.mkv",
         "hehe.webm",
     ]
-    rand_name= random.choice(filenames)
-    file_path = f"./assets/{rand_name}"
+    rand_name = random.choice(filenames)
+    file_path = f"./assets/{rand_name}"  # Corrected file path to use random filename, and ignore input file_path.
 
     return url_for("stream_media", file_path=file_path, _external=True)
 
+
 @app.route("/stream", methods=["GET"])
 def stream_media():
-    """
-    Serve a media file as a streamable response.
-    """
-    file_path = request.args.get("file_path")  # Get file path from query parameter
+    file_path = request.args.get("file_path")
+    if not file_path:
+        return jsonify({"error": "File path missing"}), 400
+
     try:
         return send_file(
             file_path,
             as_attachment=False,
             mimetype="video/mp4",
         )
+    except FileNotFoundError:
+        return jsonify({"error": "File not found"}), 404
     except Exception as e:
-        return f"Error streaming file: {str(e)}", 500
-# @token_required
+        print(f"Streaming error: {e}")  # Log the error
+        return jsonify({"error": "Error streaming file"}), 500
 
 
 @app.route("/lectures/<int:content_id>", methods=["GET"])
 @token_required
 def get_lectures_for_content(content_id):
+    conn = None
     try:
-        conn = get_db_connection(COURSES_DATABASE_CONFIG)
+        conn = get_courses_db_connection(COURSES_DATABASE_CONFIG)
+        if not conn:
+            return jsonify({"error": "Failed to connect to courses database"}), 500
         cursor = conn.cursor()
 
         query = "SELECT lecture_id, lecture_no, lecture_link, lecture_data, title, description FROM Lectures WHERE content_id = ?"
@@ -394,67 +570,79 @@ def get_lectures_for_content(content_id):
             }
             for lecture in lectures
         ]
-        print(jsonify(lecture_list))
         return jsonify(lecture_list), 200
 
     except Exception as e:
-        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
+        print(f"Lecture retrieval error: {e}")  # Log error
+        return jsonify({"error": "Failed to fetch lectures"}), 500
     finally:
-        if "conn" in locals() and conn:
+        if conn:
             conn.close()
 
-# Dynamic route for fetching all courses
+
 @app.route("/dynamicHome", methods=["GET"])
 def dynamic_home():
-    # Establish database connection
-    conn = get_db_connection(COURSES_DATABASE_CONFIG)
+    conn = None
+    try:
+        conn = get_db_connection(COURSES_DATABASE_CONFIG)
+        if not conn:
+            return jsonify({"error": "Database connection failed"}), 500
 
-    # Query the database for all the courses
-    course = conn.execute(
-        "SELECT TOP 8 * FROM HomepageTrailers ORDER BY NEWID()"
-    ).fetchall()
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT TOP 8 * FROM HomepageTrailers ORDER BY NEWID()"
+        )  # Execute directly with cursor
+        course = cursor.fetchall()
 
-    # print(course)
-    # Close the connection
-    conn.close()
+        if not course:
+            return jsonify({"error": "No courses found"}), 404
 
-    # If no courses found
-    if not course:
-        return jsonify({"error": "No courses found"}), 404
+        courses_data = [
+            {
+                "Id": row.Id,  # Access by column name
+                "Title": row.Title,
+                "Duration": row.Duration,
+                "Image": row.Image,
+            }
+            for row in course
+        ]
 
-    # Prepare data for the response
-    courses_data = [
-        {
-            "Id": course[0],
-            "Title": course[1],
-            "Duration": course[2],
-            "Image": course[3],
-        }
-        for course in course
-    ]
+        return jsonify(courses_data)
 
-    # Return the courses as a JSON response
-    return jsonify(courses_data)
+    except Exception as e:
+        print(f"Dynamic home error: {e}")  # Log error
+        return jsonify({"error": "Failed to load homepage data"}), 500
+    finally:
+        if conn:
+            conn.close()
 
-# Route for viewing or updating the active user
+
 @app.route("/activeUser", methods=["GET", "PUT"])
 @token_required
 def active_user():
+    conn = None
     try:
-        # Decode user ID from token
-        token = request.headers.get("Authorization").split(" ")[1]
+        token_str = request.headers.get("Authorization")
+        if not token_str:
+            return jsonify({"error": "Authorization header missing"}), 401
+        token_parts = token_str.split()
+        if len(token_parts) != 2 or token_parts[0].lower() != "bearer":
+            return jsonify({"error": "Invalid token format"}), 401
+        token = token_parts[1]
+
         decoded_token = jwt.decode(
             token, app.config["SHHHH_CHUP"], algorithms=["HS256"]
         )
         user_id = decoded_token["user_id"]
 
         conn = get_db_connection(DATABASE_CONFIG)
+        if not conn:
+            return jsonify({"error": "Database connection failed"}), 500
         cursor = conn.cursor()
 
         if request.method == "GET":
-            # Get the active user data
             query = """
-                SELECT UserID, FirstName, LastName, Email, Username, PasswordHash, CreatedAt, UpdatedAt, Initialized, 
+                SELECT UserID, FirstName, LastName, Email, Username, PasswordHash, CreatedAt, UpdatedAt, Initialized,
                        SubscriptionStatus, CourseLevel, GroupLevel, ProfilePic, Bio
                 FROM dbo.Users
                 WHERE UserID = ?
@@ -485,9 +673,8 @@ def active_user():
             return jsonify(user_data)
 
         elif request.method == "PUT":
-            # Get the current user data
             query = """
-                SELECT FirstName, LastName, Email, Username, PasswordHash, Initialized, SubscriptionStatus, 
+                SELECT FirstName, LastName, Email, Username, PasswordHash, Initialized, SubscriptionStatus,
                        CourseLevel, GroupLevel, ProfilePic, Bio
                 FROM dbo.Users
                 WHERE UserID = ?
@@ -498,14 +685,18 @@ def active_user():
             if not current_user:
                 return jsonify({"error": "User not found"}), 404
 
-            # Get updated data from the request
             data = request.get_json()
+            if not data:
+                return jsonify({"error": "No data provided for update"}), 400
+
             updated_data = {
                 "FirstName": data.get("FirstName", current_user.FirstName),
                 "LastName": data.get("LastName", current_user.LastName),
                 "Email": data.get("Email", current_user.Email),
                 "Username": data.get("Username", current_user.Username),
-                "PasswordHash": data.get("PasswordHash", current_user.PasswordHash),
+                "PasswordHash": data.get(
+                    "PasswordHash", current_user.PasswordHash
+                ),  # Note: Directly updating PasswordHash is generally insecure in real applications, consider password reset flows.
                 "Initialized": data.get("Initialized", current_user.Initialized),
                 "SubscriptionStatus": data.get(
                     "SubscriptionStatus", current_user.SubscriptionStatus
@@ -516,7 +707,6 @@ def active_user():
                 "Bio": data.get("Bio", current_user.Bio),
             }
 
-            # Update query
             update_query = """
                 UPDATE dbo.Users
                 SET FirstName = ?, LastName = ?, Email = ?, Username = ?, PasswordHash = ?, Initialized = ?,
@@ -541,24 +731,31 @@ def active_user():
             )
 
             conn.commit()
-
             return jsonify({"message": "User updated successfully"})
 
+    except jwt.ExpiredSignatureError:
+        return jsonify({"error": "Token has expired!"}), 401
+    except jwt.InvalidTokenError:
+        return jsonify({"error": "Token is invalid!"}), 401
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Active user error: {e}")  # Log error
+        return jsonify({"error": "Failed to process active user request"}), 500
 
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
-# Route for getting available levels and course groups
+
 @app.route("/availableLevelsAndGroups", methods=["GET"])
 @token_required
 def get_available_levels_and_groups():
+    conn = None
     try:
-        conn = get_db_connection(COURSES_DATABASE_CONFIG)
+        conn = get_courses_db_connection(COURSES_DATABASE_CONFIG)
+        if not conn:
+            return jsonify({"error": "Database connection failed"}), 500
         cursor = conn.cursor()
 
-        # Query for educational levels
         levels_query = """
             SELECT level_id, level_name, Graphic
             FROM dbo.EducationalLevels
@@ -566,7 +763,6 @@ def get_available_levels_and_groups():
         cursor.execute(levels_query)
         levels = cursor.fetchall()
 
-        # Query for course groups
         groups_query = """
             SELECT group_id, group_name, Graphic
             FROM dbo.CourseGroups
@@ -597,10 +793,12 @@ def get_available_levels_and_groups():
         )
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        print(f"Available levels/groups error: {e}")  # Log error
+        return jsonify({"error": "Failed to fetch levels and groups"}), 500
 
     finally:
-        conn.close()
+        if conn:
+            conn.close()
 
 
 if __name__ == "__main__":
